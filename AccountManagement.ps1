@@ -78,13 +78,19 @@ begin
 	function Test-User
 	{
 		[CmdletBinding()]
-		param ($SamAccountName)
+		param 
+        (
+            $processObject
+        )
 		process
 		{
 			$FunctionName = "Test-User"
-			Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
-
-			Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
+			Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            [PSCustomObject]@{
+                Action = "Test-User"
+                UserExists = $()
+            } # [PSCustomObject]
+			Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 		} # process
 	} # function Test-User
 
@@ -186,17 +192,20 @@ process
 	Write-Verbose ("{0} Entering ProcessRecord" -f [DateTime]::Now)
 	try
 	{
+        $ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
+
 		$processObject = [PSCustomObject]@{
 			RunOn           = ($Env:COMPUTERNAME).ToUpper()
 			RunAs           = ($Env:USERNAME).ToUpper()
 			Begin           = ([DateTime]::Now)
 			SamAccountName  = ($SamAccountName.ToUpper())
 			TypeOfUser      = $null
-			ActionToTake    = ($PSCmdlet.ParameterSetName.ToUpper())
+			ActionToTake    = $ActionToTake
 			ADUser          = $null
 			End             = $null
 			Duration        = $null
 			Message         = "No Action Taken"
+            Results = $null
 			Exception       = $null
 		} # $processObject
 
@@ -251,7 +260,7 @@ process
 				Unlock-User -SamAccountname $processObject.SamAccountName
 			} # UNLOCK
 			Default     {
-				Test-User -SamAccountname $processObject.SamAccountName
+				$processObject.Results = Test-User -processObject $processObject
 			} # Default
 		} # switch ($processObject.ActionTake)
 
