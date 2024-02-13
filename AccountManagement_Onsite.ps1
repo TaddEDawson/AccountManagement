@@ -1,24 +1,28 @@
 #Requires -Module ActiveDirectory
 <#
-    .SYNOPSIS
-
-    .PARAMETER SamAccountName
-
-    .PARAMETER Test
-
-    .PARAMETER New
-
-    .PARAMETER Unlock
-
-    .PARAMETER Reset
-
-    .PARAMETER Enable
-
-    .PARAMETER Extend
-
-    .PARAMETER Disable
-
-#>
+	.SYNOPSIS
+		This script is used to manage user accounts in Active Directory.
+	.DESCRIPTION
+		This script is used to manage user accounts in Active Directory.
+	.PARAMETER SamAccountName
+		The SamAccountName of the user account to manage
+	.PARAMETER TEST
+		Used to test the user account for specific properties
+	.PARAMETER NEW
+		Used to create a new user account
+	.PARAMETER UNLOCK
+		Used to unlock a user account
+	.PARAMETER RESET
+		Used to reset a user account
+	.PARAMETER ENABLE
+		Used to enable a user account
+	.PARAMETER EXTEND
+		Used to extend a user account
+	.PARAMETER DISABLE
+		Used to disable a user account
+	.EXAMPLE
+		.\AccountManagement.ps1 -SamAccountName "jsmith" -TEST -Verbose
+		Tests the user account for specific properties#>
 [CmdletBinding(
     DefaultParameterSetName = "TEST",
     SupportsShouldProcess
@@ -129,13 +133,13 @@ begin
         } # process
     } # function Enable-User
 
-    function Extend-User
+function Update-User
     {
         [CmdletBinding()]
         param ($SamAccountName)
         process
         {
-            $FunctionName = "Extend-User"
+            $FunctionName = "Update-User"
             Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
 
             Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
@@ -189,7 +193,7 @@ process
             Exception       = $null
         } # $processObject
 
-        $processObject.TypeOfUser = (
+        $processObject.TypeOfUser = $(
                                         if($processObject.SamAccountName.EndsWith("-ADM"))
                                         {
                                             "ADM"
@@ -208,7 +212,7 @@ process
                                         } # Default type of user to STANDARD
                                     ) #  $processObject.TypeOfUser
 
-        $processObject.ADUser = (
+        $processObject.ADUser = $(
                                     try
                                     {
                                         Get-ADUser $processObject.SamAccountName -Properties *
@@ -225,7 +229,7 @@ process
                 Disable-User -SamAccountname $processObject.SamAccountName
             } # DISABLE
             "EXTEND"    {
-                Extend-User -SamAccountname $processObject.SamAccountName
+                Update-User -SamAccountname $processObject.SamAccountName
             } # EXTEND
             "ENABLE"    {
                 Enable-User -SamAccountname $processObject.SamAccountName
@@ -254,7 +258,7 @@ process
     {
         $processObject.End      = [DateTime]::Now
         $processObject.Duration = [Math]::Round(($processObject.End - $processObject.Begin).TotalSeconds,2)
-        Write-Verbose ("{0} `t Processed ({1}) for ({2} in ({3}) seconds" -f [DateTime::Now], $processObject.SamAccountName, $processObject.ActionToTake, $processObject.Duration)
+        Write-Verbose ("{0} `t Processed ({1}) for ({2} in ({3}) seconds" -f [DateTime]::Now, $processObject.SamAccountName, $processObject.ActionToTake, $processObject.Duration)
     } # finally
 
 
