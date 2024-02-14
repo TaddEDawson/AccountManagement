@@ -86,10 +86,20 @@ begin
 		{
 			$FunctionName = "Test-User"
 			Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            if($null -ne $processObject.ADUser)
+            {
+                $UserExists = $true
+            } # User exists in AD
+            else
+            {
+                $UserExists = $false
+            } # User not found in AD
+
             [PSCustomObject]@{
-                Action = "Test-User"
-                UserExists = $()
+                Action = $FunctionName
+                UserExists = $UserExists
             } # [PSCustomObject]
+
 			Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 		} # process
 	} # function Test-User
