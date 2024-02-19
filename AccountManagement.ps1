@@ -69,7 +69,7 @@ param
 ) # param
 begin
 {
-	Write-Verbose ("{0} Entering BeginProccessing" -f [DateTime]::Now)
+	Write-Verbose ("{0} Entering BeginProccessing {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 
 	# Creat a Collection to hold the users processed
 	$UsersProcessed         = [System.Collections.ArrayList]::new()
@@ -195,11 +195,11 @@ function Update-User
 		} # process
 	}
 
-	Write-Verbose ("{0} Leaving BeginProccessing" -f [DateTime]::Now)
+	Write-Verbose ("{0} Leaving BeginProccessing  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 } # begin
 process
 {
-	Write-Verbose ("{0} Entering ProcessRecord" -f [DateTime]::Now)
+	Write-Verbose ("{0} Entering ProcessRecord  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 	try
 	{
 <#
@@ -344,7 +344,7 @@ $processObject = [PSCustomObject]@{
 			{
 				"NOT FOUND"
 			}
-		)
+		) # $processObject.ADUser
 
 		<#
 		.SYNOPSIS
@@ -408,13 +408,13 @@ $processObject = [PSCustomObject]@{
 	} # finally
 
 
-	Write-Verbose ("{0} Leaving ProccessRecord" -f [DateTime]::Now)
+	Write-Verbose ("{0} Leaving ProccessRecord  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 } # process
 end
 {
-	Write-Verbose ("{0} Entering EndProccessing" -f [DateTime]::Now)
+	Write-Verbose ("{0} Entering EndProccessing  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 		$EndProcessing          = [DateTime]::Now
 		$DurationProcessing     = [Math]::Round(($EndProcessing - $BeginProcessing).TotalSeconds,2)
 		Write-Verbose ("{0} `t Processed ({1}) Users in ({2}) seconds" -f [DateTime]::Now, $UsersProcessed.Count, $DurationProcessing)
-	Write-Verbose ("{0} Leaving EndProccessing" -f [DateTime]::Now)
+	Write-Verbose ("{0} Leaving EndProccessing {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 } # end
