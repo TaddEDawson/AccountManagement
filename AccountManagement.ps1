@@ -202,52 +202,172 @@ process
 	Write-Verbose ("{0} Entering ProcessRecord" -f [DateTime]::Now)
 	try
 	{
-        $ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
+<#
+.SYNOPSIS
+	This variable stores the action to be taken based on the parameter set name.
 
-		$processObject = [PSCustomObject]@{
-			RunOn           = ($Env:COMPUTERNAME).ToUpper()
-			RunAs           = ($Env:USERNAME).ToUpper()
-			Begin           = ([DateTime]::Now)
-			SamAccountName  = ($SamAccountName.ToUpper())
-			TypeOfUser      = $null
-			ActionToTake    = $ActionToTake
-			ADUser          = $null
-			End             = $null
-			Duration        = $null
-			Message         = "No Action Taken"
-            Results = $null
-			Exception       = $null
-		} # $processObject
+.DESCRIPTION
+	The $ActionToTake variable is used to determine the action to be taken in the script based on the parameter set name. It is assigned the value of the parameter set name converted to uppercase.
+
+.PARAMETER ParameterSetName
+	Specifies the name of the parameter set.
+
+.EXAMPLE
+	$ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
+#>
+
+<#
+.SYNOPSIS
+This script defines a process object used for account management.
+
+.DESCRIPTION
+The script creates a process object with various properties to track the execution of account management tasks. The process object includes information such as the computer name, username, start time, action to take, and result.
+
+.PARAMETER ActionToTake
+Specifies the action to be taken on the user account.
+
+.INPUTS
+None.
+
+.OUTPUTS
+None.
+
+.NOTES
+Author: [Your Name]
+Date: [Current Date]
+
+.EXAMPLE
+$processObject = [PSCustomObject]@{
+	RunOn           = ($Env:COMPUTERNAME).ToUpper()
+	RunAs           = ($Env:USERNAME).ToUpper()
+	Begin           = ([DateTime]::Now)
+	SamAccountName  = ($SamAccountName.ToUpper())
+	TypeOfUser      = $null
+	ActionToTake    = $ActionToTake
+	ADUser          = $null
+	End             = $null
+	Duration        = $null
+	Message         = "No Action Taken"
+	Results         = $null
+	Exception       = $null
+}
+#>
+$ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
+
+$processObject = [PSCustomObject]@{
+	RunOn           = ($Env:COMPUTERNAME).ToUpper()
+	RunAs           = ($Env:USERNAME).ToUpper()
+	Begin           = ([DateTime]::Now)
+	SamAccountName  = ($SamAccountName.ToUpper())
+	TypeOfUser      = $null
+	ActionToTake    = $ActionToTake
+	ADUser          = $null
+	End             = $null
+	Duration        = $null
+	Message         = "No Action Taken"
+	Results         = $null
+	Exception       = $null
+} # $processObject
+
+		<#
+		.SYNOPSIS
+		Determines the type of user based on the SamAccountName.
+
+		.DESCRIPTION
+		This code block assigns a value to the $processObject.TypeOfUser variable based on the SamAccountName suffix. If the SamAccountName ends with "-ADM", the type of user is set to "ADM". If it ends with "-TST", the type of user is set to "TEST". If it ends with "-NSE", the type of user is set to "NSE". For any other suffix, the type of user is set to "STANDARD".
+
+		.PARAMETER processObject
+		The object representing the user being processed.
+
+		.OUTPUTS
+		The type of user assigned to the $processObject.TypeOfUser variable.
+
+		.EXAMPLE
+		$processObject = Get-User -Identity "JohnDoe"
+		$processObject.SamAccountName = "JohnDoe-TST"
+		$processObject.TypeOfUser = DetermineUserType -processObject $processObject
+		# The $processObject.TypeOfUser variable will be set to "TEST".
+
+		.NOTES
+		This code block assumes that the $processObject variable has a property named "SamAccountName" which represents the user's account name.
+
+		#>
 
 		$processObject.TypeOfUser = $(
-										if($processObject.SamAccountName.EndsWith("-ADM"))
-										{
-											"ADM"
-										} # ADM
-										elseif($processObject.SamAccountName.EndsWith("-TST"))
-										{
-											"TEST"
-										} # TST
-										elseif($processObject.SamAccountName.EndsWith("-NSE"))
-										{
-											"NSE"
-										} # NSE
-										else
-										{
-											"STANDARD"
-										} # Default type of user to STANDARD
-									) #  $processObject.TypeOfUser
+			if($processObject.SamAccountName.EndsWith("-ADM"))
+			{
+				"ADM"
+			} # ADM
+			elseif($processObject.SamAccountName.EndsWith("-TST"))
+			{
+				"TEST"
+			} # TST
+			elseif($processObject.SamAccountName.EndsWith("-NSE"))
+			{
+				"NSE"
+			} # NSE
+			else
+			{
+				"STANDARD"
+			} # Default type of user to STANDARD
+		) #  $processObject.TypeOfUser
+
+		<#
+		.SYNOPSIS
+		Retrieves an Active Directory user object based on the provided SamAccountName.
+
+		.DESCRIPTION
+		This code block attempts to retrieve an Active Directory user object using the Get-ADUser cmdlet. 
+		If the user is found, the user object is assigned to the $processObject.ADUser variable. 
+		If the user is not found, the string "NOT FOUND" is assigned to the $processObject.ADUser variable.
+
+		.PARAMETER SamAccountName
+		The SamAccountName of the user to retrieve.
+
+		.OUTPUTS
+		System.Management.Automation.PSCustomObject
+
+		.NOTES
+		This code block requires the Active Directory module to be installed.
+
+		.EXAMPLE
+		$processObject.SamAccountName = "john.doe"
+		$processObject.ADUser = Get-ADUserObject -SamAccountName $processObject.SamAccountName
+		#>
 
 		$processObject.ADUser = $(
-									try
-									{
-										Get-ADUser $processObject.SamAccountName -Properties *
-									} # try
-									catch
-									{
-										"NOT FOUND"
-									}
-								) # $processObject.ADUser       
+			try
+			{
+				Get-ADUser $processObject.SamAccountName -Properties *
+			}
+			catch
+			{
+				"NOT FOUND"
+			}
+		)
+
+		<#
+		.SYNOPSIS
+			Executes different actions based on the value of $processObject.ActionTake.
+
+		.DESCRIPTION
+			This switch statement executes different actions based on the value of $processObject.ActionTake. 
+			The available actions are: DISABLE, EXTEND, ENABLE, NEW, RESET, UNLOCK. If none of these actions match, 
+			it will call the Test-User function with $processObject as a parameter.
+
+		.PARAMETER processObject
+			The object containing the action to be taken and the SamAccountName.
+
+		.EXAMPLE
+			$processObject = @{
+				ActionTake = "DISABLE"
+				SamAccountName = "JohnDoe"
+			}
+			Switch-Action -processObject $processObject
+
+			This example will call the Disable-User function with the SamAccountName "JohnDoe".
+
+		#>
 
 		switch ($processObject.ActionTake)
 		{
