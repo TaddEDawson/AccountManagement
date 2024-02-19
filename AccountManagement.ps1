@@ -78,7 +78,7 @@ begin
 	function Test-User
 	{
 		[CmdletBinding()]
-		param 
+		param
         (
             $processObject
         )
@@ -180,7 +180,7 @@ function Update-User
 
 			Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
 		} # process
-	} # function Disable-User    
+	} # function Disable-User
 
 	function New-Password
 	{
@@ -317,8 +317,8 @@ $processObject = [PSCustomObject]@{
 		Retrieves an Active Directory user object based on the provided SamAccountName.
 
 		.DESCRIPTION
-		This code block attempts to retrieve an Active Directory user object using the Get-ADUser cmdlet. 
-		If the user is found, the user object is assigned to the $processObject.ADUser variable. 
+		This code block attempts to retrieve an Active Directory user object using the Get-ADUser cmdlet.
+		If the user is found, the user object is assigned to the $processObject.ADUser variable.
 		If the user is not found, the string "NOT FOUND" is assigned to the $processObject.ADUser variable.
 
 		.PARAMETER SamAccountName
@@ -351,8 +351,8 @@ $processObject = [PSCustomObject]@{
 			Executes different actions based on the value of $processObject.ActionTake.
 
 		.DESCRIPTION
-			This switch statement executes different actions based on the value of $processObject.ActionTake. 
-			The available actions are: DISABLE, EXTEND, ENABLE, NEW, RESET, UNLOCK. If none of these actions match, 
+			This switch statement executes different actions based on the value of $processObject.ActionTake.
+			The available actions are: DISABLE, EXTEND, ENABLE, NEW, RESET, UNLOCK. If none of these actions match,
 			it will call the Test-User function with $processObject as a parameter.
 
 		.PARAMETER processObject
@@ -414,7 +414,7 @@ end
 {
 	Write-Verbose ("{0} Entering EndProccessing" -f [DateTime]::Now)
 		$EndProcessing          = [DateTime]::Now
-		$DurationProcessing     = [Math]::Round(($EndProcessing - $BeginProcessing).TotalSeconds,2) 
+		$DurationProcessing     = [Math]::Round(($EndProcessing - $BeginProcessing).TotalSeconds,2)
 		Write-Verbose ("{0} `t Processed ({1}) Users in ({2}) seconds" -f [DateTime]::Now, $UsersProcessed.Count, $DurationProcessing)
 	Write-Verbose ("{0} Leaving EndProccessing" -f [DateTime]::Now)
 } # end
