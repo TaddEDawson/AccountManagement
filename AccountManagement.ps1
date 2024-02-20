@@ -69,222 +69,373 @@ param
 ) # param
 begin
 {
-    Write-Verbose ("{0} Entering BeginProccessing" -f [DateTime]::Now)
+	Write-Verbose ("{0} Entering BeginProccessing {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 
     # Creat a Collection to hold the users processed
     $UsersProcessed         = [System.Collections.ArrayList]::new()
     $BeginProcessing        = [DateTime]::Now
 
-    function Test-User
-    {
-        [CmdletBinding()]
-        param
+	function Test-User
+	{
+		[CmdletBinding()]
+		param
         (
             $processObject
-        )
-        process
-        {
-            $FunctionName = "Test-User"
-            Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+        ) # param
+		process
+		{
+			$FunctionName = "Test-User"
+			Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            if($null -ne $processObject.ADUser)
+            {
+                $UserExists = $true
+            } # User exists in AD
+            else
+            {
+                $UserExists = $false
+            } # User not found in AD
+
             [PSCustomObject]@{
-                Action = "Test-User"
-                UserExists = $()
+                Action = $FunctionName
+                UserExists = $UserExists
             } # [PSCustomObject]
-            Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
-        } # process
-    } # function Test-User
 
-    function New-User
-    {
-        [CmdletBinding()]
-        param ($SamAccountName)
-        process
-        {
-            $FunctionName = "New-User"
-            Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
+			Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+		} # process
+	} # function Test-User
 
-            Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
-        } # process
-    } # function New-User
+	function New-User
+	{
+		[CmdletBinding()]
+		param 
+		(	
+			$processObject
+		) # param
+		process
+		{
+			$FunctionName = "New-User"
+			Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
-    function Unlock-User
-    {
-        [CmdletBinding()]
-        param ($SamAccountName)
-        process
-        {
-            $FunctionName = "Unlock-User"
-            Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
+			Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+		} # process
+	} # function New-User
 
-            Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
-        } # process
-    } # function Unlock-User
+	function Unlock-User
+	{
+		[CmdletBinding()]
+		param 
+		(
+			$processObject
+		) # param
+		process
+		{
+			$FunctionName = "Unlock-User"
+			Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
-    function Reset-User
-    {
-        [CmdletBinding()]
-        param ($SamAccountName)
-        process
-        {
-            $FunctionName = "Reset-User"
-            Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
+			Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+		} # process
+	} # function Unlock-User
 
-            Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
-        } # process
-    } # function Reset-User
+	function Reset-User
+	{
+		[CmdletBinding()]
+		param 
+		(
+			$processObject
+		) # param
+		process
+		{
+			$FunctionName = "Reset-User"
+			Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
-    function Enable-User
-    {
-        [CmdletBinding()]
-        param ($SamAccountName)
-        process
-        {
-            $FunctionName = "Enable-User"
-            Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
+			Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+		} # process
+	} # function Reset-User
 
-            Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
-        } # process
-    } # function Enable-User
+	function Enable-User
+	{
+		[CmdletBinding()]
+		param 
+		(
+			$processObject
+		) # param
+		process
+		{
+			$FunctionName = "Enable-User"
+			Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+
+			Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+		} # process
+	} # function Enable-User
 
 function Update-User
-    {
-        [CmdletBinding()]
-        param ($SamAccountName)
-        process
-        {
-            $FunctionName = "Update-User"
-            Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
+	{
+		[CmdletBinding()]
+		param 
+		(
+			$processObject
+		) # param
+		process
+		{
+			$FunctionName = "Update-User"
+			Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
-            Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
-        } # process
-    } # function Extend-User
+			Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+		} # process
+	} # function Extend-User
 
-    function Disable-User
-    {
-        [CmdletBinding()]
-        param ($SamAccountName)
-        process
-        {
-            $FunctionName = "Disable-User"
-            Write-Verbose ("{0} Entering {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
+	function Disable-User
+	{
+		[CmdletBinding()]
+		param 
+		(
+			$processObject
+		) # param
+		process
+		{
+			$FunctionName = "Disable-User"
+			Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
-            Write-Verbose ("{0} Leaving {1} {2}" -f [DateTime]::Now, $FunctionName, $SamAccountName)
-        } # process
-    } # function Disable-User
+			Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+		} # process
+	} # function Disable-User
 
-    function New-Password
-    {
-        [CmdletBinding()]
-        param()
-        process
-        {
-            $FunctionName = "New-Password"
-            Write-Verbose ("{0} Entering {1}" -f [DateTime]::Now, $FunctionName)
+	function New-Password
+	{
+		[CmdletBinding()]
+		param
+		(
 
-            Write-Verbose ("{0} Leaving {1}" -f [DateTime]::Now, $FunctionName)
-        } # process
-    }
+		) # param
+		process
+		{
+			$FunctionName = "New-Password"
+			Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
 
-    Write-Verbose ("{0} Leaving BeginProccessing" -f [DateTime]::Now)
+			Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
+		} # process
+	} # function New-Password
+
+	Write-Verbose ("{0} Leaving BeginProccessing  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 } # begin
 process
 {
-    Write-Verbose ("{0} Entering ProcessRecord" -f [DateTime]::Now)
-    try
-    {
-        $ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
+	Write-Verbose ("{0} Entering ProcessRecord  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
+	try
+	{
+		<#
+		.SYNOPSIS
+			This variable stores the action to be taken based on the parameter set name.
 
-        $processObject = [PSCustomObject]@{
-            RunOn           = ($Env:COMPUTERNAME).ToUpper()
-            RunAs           = ($Env:USERNAME).ToUpper()
-            Begin           = ([DateTime]::Now)
-            SamAccountName  = ($SamAccountName.ToUpper())
-            TypeOfUser      = $null
-            ActionToTake    = $ActionToTake
-            ADUser          = $null
-            End             = $null
-            Duration        = $null
-            Message         = "No Action Taken"
-            Results = $null
-            Exception       = $null
-        } # $processObject
+		.DESCRIPTION
+			The $ActionToTake variable is used to determine the action to be taken in the script based on the parameter set name. It is assigned the value of the parameter set name converted to uppercase.
 
-        $processObject.TypeOfUser = $(
-                                        if($processObject.SamAccountName.EndsWith("-ADM"))
-                                        {
-                                            "ADM"
-                                        } # ADM
-                                        elseif($processObject.SamAccountName.EndsWith("-TST"))
-                                        {
-                                            "TEST"
-                                        } # TST
-                                        elseif($processObject.SamAccountName.EndsWith("-NSE"))
-                                        {
-                                            "NSE"
-                                        } # NSE
-                                        else
-                                        {
-                                            "STANDARD"
-                                        } # Default type of user to STANDARD
-                                    ) #  $processObject.TypeOfUser
+		.PARAMETER ParameterSetName
+			Specifies the name of the parameter set.
 
-        $processObject.ADUser = $(
-                                    try
-                                    {
-                                        Get-ADUser $processObject.SamAccountName -Properties *
-                                    } # try
-                                    catch
-                                    {
-                                        "NOT FOUND"
-                                    }
-                                ) # $processObject.ADUser
+		.EXAMPLE
+			$ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
+		#>
 
-        switch ($processObject.ActionTake)
-        {
-            "DISABLE"   {
-                Disable-User -SamAccountname $processObject.SamAccountName
-            } # DISABLE
-            "EXTEND"    {
-                Update-User -SamAccountname $processObject.SamAccountName
-            } # EXTEND
-            "ENABLE"    {
-                Enable-User -SamAccountname $processObject.SamAccountName
-            } # ENABLE
-            "NEW"       {
-                New-User -SamAccountname $processObject.SamAccountName
-            } # NEW
-            "RESET"     {
-                Reset-User -SamAccountname $processObject.SamAccountName
-            } # RESET
-            "UNLOCK"    {
-                Unlock-User -SamAccountname $processObject.SamAccountName
-            } # UNLOCK
-            Default     {
-                $processObject.Results = Test-User -processObject $processObject
-            } # Default
-        } # switch ($processObject.ActionTake)
+		<#
+		.SYNOPSIS
+		This script defines a process object used for account management.
 
-    } # try
-    catch
-    {
-        $processObject.Exception = $Error[0].Exception
-        Write-Error ("{0} EXCEPTION : ({1})" -f [DateTime]::Now, $processObject.Exception)
-    } # catch
-    finally
-    {
-        $processObject.End      = [DateTime]::Now
-        $processObject.Duration = [Math]::Round(($processObject.End - $processObject.Begin).TotalSeconds,2)
-        Write-Verbose ("{0} `t Processed ({1}) for ({2} in ({3}) seconds" -f [DateTime]::Now, $processObject.SamAccountName, $processObject.ActionToTake, $processObject.Duration)
-    } # finally
+		.DESCRIPTION
+		The script creates a process object with various properties to track the execution of account management tasks. The process object includes information such as the computer name, username, start time, action to take, and result.
+
+		.PARAMETER ActionToTake
+		Specifies the action to be taken on the user account.
+
+		.INPUTS
+		None.
+
+		.OUTPUTS
+		None.
+
+		.NOTES
+		Author: [Your Name]
+		Date: [Current Date]
+
+		.EXAMPLE
+		$processObject = [PSCustomObject]@{
+			RunOn           = ($Env:COMPUTERNAME).ToUpper()
+			RunAs           = ($Env:USERNAME).ToUpper()
+			Begin           = ([DateTime]::Now)
+			SamAccountName  = ($SamAccountName.ToUpper())
+			TypeOfUser      = $null
+			ActionToTake    = $ActionToTake
+			ADUser          = $null
+			End             = $null
+			Duration        = $null
+			Message         = "No Action Taken"
+			Results         = $null
+			Exception       = $null
+		}
+		#>
+		$ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
+
+		$processObject = [PSCustomObject]@{
+			RunOn           = ($Env:COMPUTERNAME).ToUpper()
+			RunAs           = ($Env:USERNAME).ToUpper()
+			Begin           = ([DateTime]::Now)
+			SamAccountName  = ($SamAccountName.ToUpper())
+			TypeOfUser      = $null
+			ActionToTake    = $ActionToTake
+			ADUser          = $null
+			End             = $null
+			Duration        = $null
+			Message         = "No Action Taken"
+			Results         = $null
+			Exception       = $null
+		} # $processObject
+
+		<#
+		.SYNOPSIS
+		Determines the type of user based on the SamAccountName.
+
+		.DESCRIPTION
+		This code block assigns a value to the $processObject.TypeOfUser variable based on the SamAccountName suffix. If the SamAccountName ends with "-ADM", the type of user is set to "ADM". If it ends with "-TST", the type of user is set to "TEST". If it ends with "-NSE", the type of user is set to "NSE". For any other suffix, the type of user is set to "STANDARD".
+
+		.PARAMETER processObject
+		The object representing the user being processed.
+
+		.OUTPUTS
+		The type of user assigned to the $processObject.TypeOfUser variable.
+
+		.EXAMPLE
+		$processObject = Get-User -Identity "JohnDoe"
+		$processObject.SamAccountName = "JohnDoe-TST"
+		$processObject.TypeOfUser = DetermineUserType -processObject $processObject
+		# The $processObject.TypeOfUser variable will be set to "TEST".
+
+		.NOTES
+		This code block assumes that the $processObject variable has a property named "SamAccountName" which represents the user's account name.
+
+		#>
+
+		$processObject.TypeOfUser = $(
+			if($processObject.SamAccountName.EndsWith("-ADM"))
+			{
+				"ADM"
+			} # ADM
+			elseif($processObject.SamAccountName.EndsWith("-TST"))
+			{
+				"TEST"
+			} # TST
+			elseif($processObject.SamAccountName.EndsWith("-NSE"))
+			{
+				"NSE"
+			} # NSE
+			else
+			{
+				"STANDARD"
+			} # Default type of user to STANDARD
+		) #  $processObject.TypeOfUser
+
+		<#
+		.SYNOPSIS
+		Retrieves an Active Directory user object based on the provided SamAccountName.
+
+		.DESCRIPTION
+		This code block attempts to retrieve an Active Directory user object using the Get-ADUser cmdlet.
+		If the user is found, the user object is assigned to the $processObject.ADUser variable.
+		If the user is not found, the string "NOT FOUND" is assigned to the $processObject.ADUser variable.
+
+		.PARAMETER SamAccountName
+		The SamAccountName of the user to retrieve.
+
+		.OUTPUTS
+		System.Management.Automation.PSCustomObject
+
+		.NOTES
+		This code block requires the Active Directory module to be installed.
+
+		.EXAMPLE
+		$processObject.SamAccountName = "john.doe"
+		$processObject.ADUser = Get-ADUser -SamAccountName $processObject.SamAccountName
+		#>
+
+		$processObject.ADUser = $(
+			try
+			{
+				Get-ADUser $processObject.SamAccountName -Properties *
+			}
+			catch
+			{
+				"NOT FOUND"
+			}
+		) # $processObject.ADUser
+
+		<#
+		.SYNOPSIS
+			Executes different actions based on the value of $processObject.ActionTake.
+
+		.DESCRIPTION
+			This switch statement executes different actions based on the value of $processObject.ActionTake.
+			The available actions are: DISABLE, EXTEND, ENABLE, NEW, RESET, UNLOCK. If none of these actions match,
+			it will call the Test-User function with $processObject as a parameter.
+
+		.PARAMETER processObject
+			The object containing the action to be taken and the SamAccountName.
+
+		.EXAMPLE
+			$processObject = @{
+				ActionTake = "DISABLE"
+				SamAccountName = "JohnDoe"
+			}
+			Switch-Action -processObject $processObject
+
+			This example will call the Disable-User function with the SamAccountName "JohnDoe".
+
+		#>
+
+		switch ($processObject.ActionTake)
+		{
+			"DISABLE"   {
+				$processObject.Results = Disable-User -processObject $processObject
+			} # DISABLE
+			"EXTEND"    {
+				$processObject.Results = Update-User -processObject $processObject
+			} # EXTEND
+			"ENABLE"    {
+				$processObject.Results = Enable-User -processObject $processObject
+			} # ENABLE
+			"NEW"       {
+				$processObject.Results = New-User -processObject $processObject
+			} # NEW
+			"RESET"     {
+				$processObject.Results = Reset-User -processObject $processObject
+			} # RESET
+			"UNLOCK"    {
+				$processObject.Results = Unlock-User -processObject $processObject
+			} # UNLOCK
+			Default     {
+				$processObject.Results = Test-User -processObject $processObject
+			} # Default
+		} # switch ($processObject.ActionTake)
+		[void] $UsersProcessed.Add($processObject)
+	} # try
+	catch
+	{
+		$processObject.Exception = $Error[0].Exception
+		Write-Error ("{0} EXCEPTION : ({1})" -f [DateTime]::Now, $processObject.Exception)
+	} # catch
+	finally
+	{
+		$processObject.End      = [DateTime]::Now
+		$processObject.Duration = [Math]::Round(($processObject.End - $processObject.Begin).TotalSeconds,2)
+		Write-Verbose ("{0} `t Processed ({1}) for ({2}) in ({3}) seconds" -f [DateTime]::Now, $processObject.SamAccountName, $processObject.ActionToTake, $processObject.Duration)
+	} # finally
 
 
-    Write-Verbose ("{0} Leaving ProccessRecord" -f [DateTime]::Now)
+	Write-Verbose ("{0} Leaving ProccessRecord  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 } # process
 end
 {
-    Write-Verbose ("{0} Entering EndProccessing" -f [DateTime]::Now)
-        $EndProcessing          = [DateTime]::Now
-        $DurationProcessing     = [Math]::Round(($EndProcessing - $BeginProcessing).TotalSeconds,2)
-        Write-Verbose ("{0} `t Processed ({1}) Users in ({2}) seconds" -f [DateTime]::Now, $UsersProcessed.Count, $DurationProcessing)
-    Write-Verbose ("{0} Leaving EndProccessing" -f [DateTime]::Now)
+	Write-Verbose ("{0} Entering EndProccessing  {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
+		$EndProcessing          = [DateTime]::Now
+		$DurationProcessing     = [Math]::Round(($EndProcessing - $BeginProcessing).TotalSeconds,2)
+		Write-Verbose ("{0} `t Processed ({1}) Users in ({2}) seconds" -f [DateTime]::Now, $UsersProcessed.Count, $DurationProcessing)
+	Write-Verbose ("{0} Leaving EndProccessing {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 } # end
