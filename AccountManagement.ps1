@@ -195,8 +195,8 @@ begin
     function New-User
     {
         [CmdletBinding()]
-        param 
-        (   
+        param
+        (
             $processObject
         ) # param
         process
@@ -211,7 +211,7 @@ begin
     function Unlock-User
     {
         [CmdletBinding()]
-        param 
+        param
         (
             $processObject
         ) # param
@@ -227,7 +227,7 @@ begin
     function Reset-User
     {
         [CmdletBinding()]
-        param 
+        param
         (
             $processObject
         ) # param
@@ -243,7 +243,7 @@ begin
     function Enable-User
     {
         [CmdletBinding()]
-        param 
+        param
         (
             $processObject
         ) # param
@@ -259,7 +259,7 @@ begin
 function Update-User
     {
         [CmdletBinding()]
-        param 
+        param
         (
             $processObject
         ) # param
@@ -275,7 +275,7 @@ function Update-User
     function Disable-User
     {
         [CmdletBinding()]
-        param 
+        param
         (
             $processObject
         ) # param
@@ -332,10 +332,10 @@ function Update-User
                     if ($FirstRandom -eq $Previous)
                     {
                         # Write-Verbose "Get a new value to check, continue until value is not equal to previous"
-                        Do 
+                        Do
                         {
                             $ReturnValue = Get-NonRepeatingIndex -Collection $Collection -Previous $FirstRandom
-    
+
                         #   Write-Verbose ("`t{0} {1} {2} {3}" -f $ReturnValue, $FirstRandom, ($ReturnValue -eq $FirstRandom), $Previous)
                         } Until ($ReturnValue -ne $Previous)
                         return $ReturnValue
@@ -346,8 +346,8 @@ function Update-User
                     }
                 } # process
             } # function Get-NonRepeatingIndex
-            
-            <# 
+
+            <#
                 Hashtable of the Character Sets to be used in the generation of password
                 (letters i,l,o,q removed for disambiguation of initial email)
             #>
@@ -362,7 +362,7 @@ function Update-User
                 # Upper case non-ambiguous letters
                 4   = $AllowedLetters.ToUpper().ToCharArray()
             } # $CharacterSets
-    
+
             $RandomString = ""
             $PrevSet = $null
             Do
