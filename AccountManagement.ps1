@@ -393,22 +393,22 @@ process
 		switch ($processObject.ActionTake)
 		{
 			"DISABLE"   {
-				Disable-User -SamAccountname $processObject.SamAccountName
+				$processObject.Results = Disable-User -processObject $processObject
 			} # DISABLE
 			"EXTEND"    {
-				Update-User -SamAccountname $processObject.SamAccountName
+				$processObject.Results = Update-User -processObject $processObject
 			} # EXTEND
 			"ENABLE"    {
-				Enable-User -SamAccountname $processObject.SamAccountName
+				$processObject.Results = Enable-User -processObject $processObject
 			} # ENABLE
 			"NEW"       {
-				New-User -SamAccountname $processObject.SamAccountName
+				$processObject.Results = New-User -processObject $processObject
 			} # NEW
 			"RESET"     {
-				Reset-User -SamAccountname $processObject.SamAccountName
+				$processObject.Results = Reset-User -processObject $processObject
 			} # RESET
 			"UNLOCK"    {
-				Unlock-User -SamAccountname $processObject.SamAccountName
+				$processObject.Results = Unlock-User -processObject $processObject
 			} # UNLOCK
 			Default     {
 				$processObject.Results = Test-User -processObject $processObject
