@@ -39,35 +39,35 @@ param
     [Parameter(ParameterSetName = "ENABLE", ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory = $true)]
     [Parameter(ParameterSetName = "EXTEND", ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory = $true)]
     [Parameter(ParameterSetName = "DISABLE", ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory = $true)]
-    [string]$SamAccountName
+    [string] $SamAccountName
     ,
 
     [Parameter(ParameterSetName = "TEST")]
-    [switch]$TEST
+    [switch] $TEST
     ,
 
     [Parameter(ParameterSetName = "NEW")]
-    [switch]$NEW
+    [switch] $NEW
     ,
 
     [Parameter(ParameterSetName = "UNLOCK")]
-    [switch]$UNLOCK
+    [switch] $UNLOCK
     ,
 
     [Parameter(ParameterSetName = "RESET")]
-    [switch]$RESET
+    [switch] $RESET
     ,
 
     [Parameter(ParameterSetName = "ENABLE")]
-    [switch]$ENABLE
+    [switch] $ENABLE
     ,
 
     [Parameter(ParameterSetName = "EXTEND")]
-    [switch]$EXTEND
+    [switch] $EXTEND
     ,
 
     [Parameter(ParameterSetName = "DISABLE")]
-    [switch]$DISABLE
+    [switch] $DISABLE
     ,
     # OU for user to be added to
     [Parameter(ParameterSetName = "TEST")]
@@ -77,8 +77,7 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String]
-    $EnabledUsersOU = "OU=Enabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
+    [string] $EnabledUsersOU = "OU=Enabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
     ,
     # OU for ADMIN Users to be added to
     [Parameter(ParameterSetName = "TEST")]
@@ -88,9 +87,28 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String]
-    $AdminOU = "OU=Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
+    [String] $AdminOU = "OU=Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
     ,
+	# OU for TEST Users to be added to
+	[Parameter(ParameterSetName = "TEST")]
+	[Parameter(ParameterSetName = "NEW")]
+	[Parameter(ParameterSetName = "UNLOCK")]
+	[Parameter(ParameterSetName = "RESET")]
+	[Parameter(ParameterSetName = "ENABLE")]
+	[Parameter(ParameterSetName = "EXTEND")]
+	[Parameter(ParameterSetName = "DISABLE")]
+	[String] $TestOU = "OU=Enabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
+	,
+	# OU for NSE Users to be added to
+	[Parameter(ParameterSetName = "TEST")]
+	[Parameter(ParameterSetName = "NEW")]
+	[Parameter(ParameterSetName = "UNLOCK")]
+	[Parameter(ParameterSetName = "RESET")]
+	[Parameter(ParameterSetName = "ENABLE")]
+	[Parameter(ParameterSetName = "EXTEND")]
+	[Parameter(ParameterSetName = "DISABLE")]
+	[String] $NSEOU = "OU=Enabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
+	,
     # UPN suffix, defaults to "uce.cia.gov"
     [Parameter(ParameterSetName = "TEST")]
     [Parameter(ParameterSetName = "NEW")]
@@ -99,8 +117,7 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String]
-    $UPN = "uce.cia.gov"
+    [String] $UPN = "uce.cia.gov"
     ,
     # Regular User Group Name for add, Add Users to the "UCE Users" Group to provide access to the WVD Users Host Pool
     [Parameter(ParameterSetName = "TEST")]
@@ -110,8 +127,7 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String]
-    $RegularUserGroup = "UCE Users"
+    [String] $RegularUserGroup = "UCE Users"
     ,
     # UCE Admin Group Name
     [Parameter(ParameterSetName = "TEST")]
@@ -121,11 +137,9 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String]
-    $AdminUserGroup = "UCE Admins"
+    [String] $AdminUserGroup = "UCE Admins"
     ,
     # TAO User group
-    [Parameter()]
     [Parameter(ParameterSetName = "TEST")]
     [Parameter(ParameterSetName = "NEW")]
     [Parameter(ParameterSetName = "UNLOCK")]
@@ -203,6 +217,31 @@ begin
         {
             $FunctionName = "New-User"
             Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+
+			  # Change Name to lower then Title Case and reassign to Name (for when Name is all CAPS)
+			  $Name = (Get-Culture).TextInfo.ToTitleCase($processObject.SamAccountName.ToLower())
+
+			  $NewADUserProperties = [Ordered]@{
+					  Name                    = $Name
+					  Description             = [String]::Empty
+					  SamAccountName          = $Name
+					  UserPrincipalName       = "$($Name)@$UPN"
+					  DisplayName             = $Name
+					  EmployeeID              = $UserToCreate.ID
+					  Path                    = $OU
+					  Enabled                 = $true
+					  AccountPassword         = (ConvertTo-SecureString $Password -AsPlainText -Force)
+					  ChangePasswordAtLogon   = $true
+					  AccountExpirationDate   = (Get-Date).AddYears(1)
+					  Confirm                 = $false
+					  ErrorAction             = "Stop"
+				  } # $NewADUserProperties
+			  
+			  New-ADUser @NewADUserProperties
+			  
+			  $ADUser                     = Get-ADUser $Name -Properties whenCreated -ErrorAction Stop
+			  $UserToCreate.Created       = $true
+			  $UserToCreate.CreatedDate   = $ADUser.whenCreated
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
         } # process
@@ -412,7 +451,7 @@ process
             RunOn                   = ($Env:COMPUTERNAME).ToUpper()
             RunAs                   = ($Env:USERNAME).ToUpper()
             Begin                   = ([DateTime]::Now)
-            SamAccountName          = ($SamAccountName.ToUpper())
+            SamAccountName          = (Get-Culture).TextInfo.ToTitleCase($SamAccountName.ToLower())
             TypeOfUser              = $null
             ActionToTake            = $ActionToTake
             ADUser                  = $null
@@ -426,7 +465,9 @@ process
             UPN                     = $UPN
             RegularUserGroup        = $RegularUserGroup
             AdminUserGroup          = $AdminUserGroup
-            $TAOGroup               = $TAOGroup
+			OUtoAddTo               = $null
+			GroupsToAddTo 		 	= [System.Collections.ArrayList]::new()
+            TAOGroup               	= $TAOGroup
             AzureActiveDirectoryVM  = $AzureActiveDirectoryVM
             OnSiteOnlyProperty      = $OnSiteOnlyProperty
             OnSiteOnlyValue         = $null
@@ -448,24 +489,26 @@ process
         The type of user assigned to the $processObject.TypeOfUser variable.
         #>
 
-        $processObject.TypeOfUser = $(
-            if($processObject.SamAccountName.EndsWith("-ADM"))
-            {
-                "ADM"
-            } # ADM
-            elseif($processObject.SamAccountName.EndsWith("-TST"))
-            {
-                "TEST"
-            } # TST
-            elseif($processObject.SamAccountName.EndsWith("-NSE"))
-            {
-                "NSE"
-            } # NSE
-            else
-            {
-                "STANDARD"
-            } # Default type of user to STANDARD
-        ) #  $processObject.TypeOfUser
+
+		if($processObject.SamAccountName.EndsWith("-ADM"))
+		{
+			$processObject.TypeOfUser = "ADM"
+		} # ADM
+		elseif($processObject.SamAccountName.EndsWith("-TST"))
+		{
+			$processObject.TypeOfUser = "TEST"
+		} # TST
+		elseif($processObject.SamAccountName.EndsWith("-NSE"))
+		{
+			$processObject.TypeOfUser = "NSE"
+		} # NSE
+		else
+		{
+			$processObject.TypeOfUser = "STANDARD"
+			$processObject.OU = $EnabledUsersOU
+			$processObject.GroupsToAddTo.Add($RegularUserGroup)
+		} # Default type of user to STANDARD
+
 
         <#
         .SYNOPSIS
