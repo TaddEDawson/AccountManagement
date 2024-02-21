@@ -20,11 +20,41 @@
         Used to extend a user account
     .PARAMETER DISABLE
         Used to disable a user account
+    .PARAMETER EnabledUsersOU
+        The OU for user to be added to
+    .PARAMETER AdminOU
+        The OU for ADMIN Users to be added to
+    .PARAMETER TestOU
+        The OU for TEST Users to be added to
+    .PARAMETER NSEOU
+        The OU for NSE Users to be added to
+    .PARAMETER DisabledUsersOU
+        The OU for Disabled Users to be added to
+    .PARAMETER UPN
+        UPN suffix, defaults to "uce.cia.gov"
+    .PARAMETER RegularUserGroup
+        Regular User Group Name for add, Add Users to the "UCE Users" Group to provide access to the WVD Users Host Pool
+    .PARAMETER AdminUserGroup
+        UCE Admin Group Name
+    .PARAMETER TAOGroup
+        TAO User group
+    .PARAMETER AzureActiveDirectoryVM
+        AzureActiveDirectoryVM
+    .PARAMETER OnSiteOnlyProperty
+        Onsite Only property
+    .PARAMETER OnSiteOnlyValue
+        Onsite Only value
+    .PARAMETER OnSiteOnly
+        Onsite Only
+ 
     .EXAMPLE
         .\AccountManagement.ps1 -SamAccountName "jsmith" -TEST -Verbose
         Tests the user account for specific properties
     .EXAMPLE
         "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose
+
+    .NOTES
+        AccountExpirationDate   = (Get-Date).AddYears(1)
 #>
 [CmdletBinding(
     DefaultParameterSetName = "TEST",
@@ -109,6 +139,16 @@ param
 	[Parameter(ParameterSetName = "DISABLE")]
 	[String] $NSEOU = "OU=Enabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
 	,
+	# OU for Disabled Users to be added to
+	[Parameter(ParameterSetName = "TEST")]
+	[Parameter(ParameterSetName = "NEW")]
+	[Parameter(ParameterSetName = "UNLOCK")]
+	[Parameter(ParameterSetName = "RESET")]
+	[Parameter(ParameterSetName = "ENABLE")]
+	[Parameter(ParameterSetName = "EXTEND")]
+	[Parameter(ParameterSetName = "DISABLE")]
+	[String] $DisabledUsersOU = "OU=Disabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
+    ,
     # UPN suffix, defaults to "uce.cia.gov"
     [Parameter(ParameterSetName = "TEST")]
     [Parameter(ParameterSetName = "NEW")]
@@ -168,6 +208,16 @@ param
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
     [String] $OnSiteOnlyProperty = 'msDS-cloudExtensionAttribute2'
+    ,
+    # Account Expireation Date
+    [Parameter(ParameterSetName = "TEST")]
+    [Parameter(ParameterSetName = "NEW")]
+    [Parameter(ParameterSetName = "UNLOCK")]
+    [Parameter(ParameterSetName = "RESET")]
+    [Parameter(ParameterSetName = "ENABLE")]
+    [Parameter(ParameterSetName = "EXTEND")]
+    [Parameter(ParameterSetName = "DISABLE")]
+    [DateTime] $AccountExpirationDate   = (Get-Date).AddYears(1)
 ) # param
 begin
 {
@@ -222,17 +272,16 @@ begin
 			  $Name = (Get-Culture).TextInfo.ToTitleCase($processObject.SamAccountName.ToLower())
 
 			  $NewADUserProperties = [Ordered]@{
-					  Name                    = $Name
+					  Name                    = $processObject.SamAccountName
 					  Description             = [String]::Empty
-					  SamAccountName          = $Name
-					  UserPrincipalName       = "$($Name)@$UPN"
-					  DisplayName             = $Name
-					  EmployeeID              = $UserToCreate.ID
-					  Path                    = $OU
+					  SamAccountName          = $processObject.SamAccountName
+					  UserPrincipalName       = ("{0}@{1}" -f $processObject.SamAccountName, $processObject.UPN)
+					  DisplayName             = $processObject.SamAccountName
+					  Path                    = $processObject.OUtoAddTo
 					  Enabled                 = $true
-					  AccountPassword         = (ConvertTo-SecureString $Password -AsPlainText -Force)
+					  AccountPassword         = (ConvertTo-SecureString $processObject.NewPassword -AsPlainText -Force)
 					  ChangePasswordAtLogon   = $true
-					  AccountExpirationDate   = (Get-Date).AddYears(1)
+					  AccountExpirationDate   = $processObject.AccountExpirationDate
 					  Confirm                 = $false
 					  ErrorAction             = "Stop"
 				  } # $NewADUserProperties
@@ -461,6 +510,7 @@ process
             Results                 = $null
             NewPassword             = New-Password
             EnabledUsersOU          = $EnabledUsersOU
+            DisabledUsersOU         = $DisabledUsersOU
             AdminOU                 = $AdminOU
             UPN                     = $UPN
             RegularUserGroup        = $RegularUserGroup
@@ -472,6 +522,7 @@ process
             OnSiteOnlyProperty      = $OnSiteOnlyProperty
             OnSiteOnlyValue         = $null
             OnSiteOnly              = $true
+            AccountExpirationDate   = $AccountExpirationDate
             Exception               = $null
         } # $processObject
 
@@ -489,26 +540,30 @@ process
         The type of user assigned to the $processObject.TypeOfUser variable.
         #>
 
-
 		if($processObject.SamAccountName.EndsWith("-ADM"))
 		{
-			$processObject.TypeOfUser = "ADM"
+			$processObject.TypeOfUser   = "ADM"
+            $processObject.OUtoAddTo    = $AdminOU
+			$processObject.GroupsToAddTo.Add($AdminUserGroup)
 		} # ADM
 		elseif($processObject.SamAccountName.EndsWith("-TST"))
 		{
-			$processObject.TypeOfUser = "TEST"
+			$processObject.TypeOfUser   = "TEST"
+            $processObject.OUtoAddTo    = $EnabledUsersOU
+			$processObject.GroupsToAddTo.Add($RegularUserGroup)
 		} # TST
 		elseif($processObject.SamAccountName.EndsWith("-NSE"))
 		{
-			$processObject.TypeOfUser = "NSE"
+			$processObject.TypeOfUser   = "NSE"
+            $processObject.OUtoAddTo    = $NSEOU
+			$processObject.GroupsToAddTo.Add($RegularUserGroup)
 		} # NSE
 		else
 		{
-			$processObject.TypeOfUser = "STANDARD"
-			$processObject.OU = $EnabledUsersOU
+			$processObject.TypeOfUser   = "STANDARD"
+			$processObject.OUtoAddTo    = $EnabledUsersOU
 			$processObject.GroupsToAddTo.Add($RegularUserGroup)
 		} # Default type of user to STANDARD
-
 
         <#
         .SYNOPSIS
