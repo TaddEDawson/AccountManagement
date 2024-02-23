@@ -51,8 +51,7 @@
         .\AccountManagement.ps1 -SamAccountName "jsmith" -TEST -Verbose -WhatIf
         Tests the user account for specific properties
     .EXAMPLE
-        "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose
-
+        "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
 
     .NOTES
         AccountExpirationDate   = (Get-Date).AddYears(1)
@@ -119,17 +118,7 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String] $AdminOU = "OU=Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
-    ,
-    # OU for TEST Users to be added to
-    [Parameter(ParameterSetName = "TEST")]
-    [Parameter(ParameterSetName = "NEW")]
-    [Parameter(ParameterSetName = "UNLOCK")]
-    [Parameter(ParameterSetName = "RESET")]
-    [Parameter(ParameterSetName = "ENABLE")]
-    [Parameter(ParameterSetName = "EXTEND")]
-    [Parameter(ParameterSetName = "DISABLE")]
-    [String] $TestOU = "OU=Enabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
+    [String] $EnabledAdminOU = "OU=Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
     ,
     # OU for NSE Users to be added to
     [Parameter(ParameterSetName = "TEST")]
@@ -139,7 +128,7 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String] $NSEOU = "OU=Service Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
+    [String] $EnabledNSEOU = "OU=Service Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
     ,
     # OU for Disabled Users to be added to
     [Parameter(ParameterSetName = "TEST")]
@@ -159,7 +148,17 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String] $DisabledAdminsOU = "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
+    [String] $DisabledAdminOU = "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
+,
+    # OU for NSE Users to be added to
+    [Parameter(ParameterSetName = "TEST")]
+    [Parameter(ParameterSetName = "NEW")]
+    [Parameter(ParameterSetName = "UNLOCK")]
+    [Parameter(ParameterSetName = "RESET")]
+    [Parameter(ParameterSetName = "ENABLE")]
+    [Parameter(ParameterSetName = "EXTEND")]
+    [Parameter(ParameterSetName = "DISABLE")]
+    [String] $DisabledNSEOU = "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
     ,
     # UPN suffix, defaults to "uce.cia.gov"
     [Parameter(ParameterSetName = "TEST")]
@@ -290,7 +289,7 @@ begin
                     SamAccountName          = $processObject.SamAccountName
                     UserPrincipalName       = ("{0}@{1}" -f $processObject.SamAccountName, $processObject.UPN)
                     DisplayName             = $processObject.SamAccountName
-                    Path                    = $processObject.OUtoAddTo
+                    Path                    = $processObject.EnabledOU
                     Enabled                 = $true
                     AccountPassword         = (ConvertTo-SecureString $processObject.NewPassword -AsPlainText -Force)
                     ChangePasswordAtLogon   = $true
@@ -298,7 +297,7 @@ begin
                     Confirm                 = $false
                     ErrorAction             = "Stop"
                 } # $NewADUserProperties
-           
+            
             $NewUser = [PSCustomObject]@{
                             SamAccountName  = $processObject.SamAccountName
                             Created         = $false
@@ -311,10 +310,10 @@ begin
             try
             {
                 New-ADUser @NewADUserProperties
-   
+    
                 $ADUser                 = Get-ADUser $processObject.SamAccountName -Properties whenCreated -ErrorAction Stop
                 $NewUser.ADUser         = $ADUser
-                $NewUser.Enabled        = $ADUser.Enabled
+                $NewUser.Enabled        = $ADUser.Enabled 
                 $NewUser.Created        = if($ADUser){$true}else{$false}
                 $NewUser.CreatedDate    = $ADUser.whenCreated
             } # try to create new ADUser
@@ -412,7 +411,26 @@ function Update-User
         {
             $FunctionName = "Disable-User"
             Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            try
+            {
+                Write-Verbose ("{0} `t`t {1} Disable-ADAccount -Identity {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+                Disable-ADAccount -Identity $processObject.ADUser -ErrorAction Stop
+                Write-Verbose ("{0} `t`t {1} Disabled {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
+                Write-Verbose ("{0} `t`t {1} Move-ADObject -Identity {2} -TargetPath {3}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName, $processObject.DisabledOU)
+                Move-ADObject -Identity $processObject.ADUser -TargetPath $processObject.DisabledOU -ErrorAction Stop
+                Write-Verbose ("{0} `t`t {1} Moved ({2}) from ({3}) to ({4})" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName, $processObject.OriginalOU, $processObject.DisabledOU)
+
+            }
+            catch
+            {
+                Write-Warning ("{0} `t`t {1} Exception {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            }
+            <#
+            Move-ADObject $adUser -TargetPath "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com" -Credential $Cred -ErrorAction Stop
+            Write-Output "Moved admin user $adUser to disabled OU"
+            Set-ADUser $adUser.Name -Description "$Today disabled due to inactivity" -Credential $Cred -ErrorAction Stop
+            #>
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
         } # process
@@ -535,34 +553,68 @@ process
 
         <#
         .DESCRIPTION
-        The script creates a process object with various properties to track the execution of account management tasks.
+        The script creates a process object with various properties to track the execution of account management tasks. 
         The process object includes information such as the computer name, username, start time, action to take, and result.
 
         .PARAMETER ActionToTake
         Specifies the action to be taken on the user account.
         #>
 
+        $RunAs          = ($Env:USERNAME).ToUpper()
+        $RunAsMemberOf  = (Get-ADUser $RunAs -Properties MemberOf).MemberOf
+
+        $ADUser = try
+        {
+            Get-ADUser $SamAccountName -Properties * -ErrorAction Stop
+        }
+        catch
+        {
+            $null
+        } # $ADUser
+
+        $OriginalOU = if($null -eq $ADUser)
+        {
+            $null
+        }
+        else
+        {
+            $Split = $ADUser.DistinguishedName.Split(",") 
+            ($Split | Select-Object -Last ($Split.Count-1)) -Join ","
+        }
+
         $processObject = [PSCustomObject]@{
             RunOn                   = ($Env:COMPUTERNAME).ToUpper()
-            RunAs                   = ($Env:USERNAME).ToUpper()
+            RunAs                   = $RunAs
+            RunAsMemberOf           = $RunAsMemberOf
             Begin                   = ([DateTime]::Now)
             # Change SamAccountName to lower then Title Case and reassign to SamAccountName (for when Name is all CAPS)
-            SamAccountName          = (Get-Culture).TextInfo.ToTitleCase($SamAccountName.ToLower())
+            SamAccountName          = (Get-Culture).TextInfo.ToTitleCase($SamAccountName.ToLower()) 
             TypeOfUser              = $null
             ActionToTake            = $ActionToTake
-            ADUser                  = $null
+            ADUser                  = $ADUser
+            OriginalOU              = $OriginalOU
+            # Enabled and Disabled to be set based on type of account
+            EnabledOU               = $null
+            DisabledOU              = $null
+
             End                     = $null
             Duration                = $null
             Message                 = "No Action Taken"
             Results                 = $null
             NewPassword             = New-Password
+            # Standard and Test Users
             EnabledUsersOU          = $EnabledUsersOU
             DisabledUsersOU         = $DisabledUsersOU
-            AdminOU                 = $AdminOU
+            # Admin Users
+            EnabledAdminOU          = $EnabledAdminOU
+            DisabledAdminOU         = $DisabledAdminOU
+            # NSE Users
+            EnabledNSEOU            = $EnabledNSEOU
+            DisabledNSEOU           = $DisabledNSEOU
+
             UPN                     = $UPN
             RegularUserGroup        = $RegularUserGroup
             AdminUserGroup          = $AdminUserGroup
-            OUtoAddTo               = $null
             GroupsToAddTo           = [System.Collections.ArrayList]::new()
             TAOGroup                = $TAOGroup
             AzureActiveDirectoryVM  = $AzureActiveDirectoryVM
@@ -576,10 +628,10 @@ process
 
         <#
         .DESCRIPTION
-        This code block assigns a value to the $processObject.TypeOfUser variable based on the SamAccountName suffix.
-        If the SamAccountName ends with "-ADM", the type of user is set to "ADM".
-        If it ends with "-TST", the type of user is set to "TEST".
-        If it ends with "-NSE", the type of user is set to "NSE".
+        This code block assigns a value to the $processObject.TypeOfUser variable based on the SamAccountName suffix. 
+        If the SamAccountName ends with "-ADM", the type of user is set to "ADM". 
+        If it ends with "-TST", the type of user is set to "TEST". 
+        If it ends with "-NSE", the type of user is set to "NSE". 
         For any other suffix, the type of user is set to "STANDARD".
 
         .PARAMETER processObject
@@ -593,25 +645,29 @@ process
         if($processObject.SamAccountName.EndsWith("-ADM"))
         {
             $processObject.TypeOfUser   = "ADM"
-            $processObject.OUtoAddTo    = $AdminOU
+            $processObject.EnabledOU    = $processObject.EnabledAdminOU
+            $processObject.DisabledOU   = $processObject.DisabledAdminOU
             [void] $processObject.GroupsToAddTo.Add($AdminUserGroup)
         } # ADM
         elseif($processObject.SamAccountName.EndsWith("-TST"))
         {
             $processObject.TypeOfUser   = "TEST"
-            $processObject.OUtoAddTo    = $EnabledUsersOU
+            $processObject.EnabledOU    = $processObject.EnabledUsersOU
+            $processObject.DisabledOU   = $processObject.DisabledUsersOU
             [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
         } # TST
         elseif($processObject.SamAccountName.EndsWith("-NSE"))
         {
             $processObject.TypeOfUser   = "NSE"
-            $processObject.OUtoAddTo    = $NSEOU
+            $processObject.EnabledOU    = $processObject.EnabledNSEOU
+            $processObject.DisabledOU   = $processObject.DisabledNSEOU
             [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
         } # NSE
         else
         {
             $processObject.TypeOfUser   = "STANDARD"
-            $processObject.OUtoAddTo    = $EnabledUsersOU
+            $processObject.EnabledOU    = $processObject.EnabledUsersOU
+            $processObject.DisabledOU   = $processObject.DisabledUsersOU
             [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
         } # Default type of user to STANDARD
 
@@ -656,7 +712,7 @@ process
         #>
 
 
-        switch ($processObject.ActionTake)
+        switch ($processObject.ActionToTake)
         {
             "DISABLE"   {
                 $action = "DISABLE"
@@ -776,13 +832,13 @@ end
                             $ADSyncSyncResults = Start-ADSyncSyncCycle -PolicyType Delta -ErrorAction Stop
 
                             [PSCustomObject]@{
-                                ADSyncSyncResults     = $ADSyncSyncResults
+                                ADSyncSyncResults   = $ADSyncSyncResults
                             } # Custom Object to return
                         } # try
                         catch
                         {
                             [PSCustomObject]@{
-                                ADSyncSyncResults     = $Error[0]
+                                ADSyncSyncResults   = $Error[0]
                             } # Custom Object to Return
                         } # catch
                     } # $ScriptBlock
