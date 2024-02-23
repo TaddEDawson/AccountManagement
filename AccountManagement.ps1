@@ -832,13 +832,13 @@ end
                             $ADSyncSyncResults = Start-ADSyncSyncCycle -PolicyType Delta -ErrorAction Stop
 
                             [PSCustomObject]@{
-                                ADSyncSyncResults   = $ADSyncSyncResults
+                                ADSyncSyncResults = $ADSyncSyncResults
                             } # Custom Object to return
                         } # try
                         catch
                         {
                             [PSCustomObject]@{
-                                ADSyncSyncResults   = $Error[0]
+                                ADSyncSyncResults = $Error[0]
                             } # Custom Object to Return
                         } # catch
                     } # $ScriptBlock
