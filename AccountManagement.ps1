@@ -51,8 +51,7 @@
         .\AccountManagement.ps1 -SamAccountName "jsmith" -TEST -Verbose -WhatIf
         Tests the user account for specific properties
     .EXAMPLE
-        "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose
-
+        "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
 
     .NOTES
         AccountExpirationDate   = (Get-Date).AddYears(1)
@@ -119,17 +118,7 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String] $AdminOU = "OU=Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
-    ,
-    # OU for TEST Users to be added to
-    [Parameter(ParameterSetName = "TEST")]
-    [Parameter(ParameterSetName = "NEW")]
-    [Parameter(ParameterSetName = "UNLOCK")]
-    [Parameter(ParameterSetName = "RESET")]
-    [Parameter(ParameterSetName = "ENABLE")]
-    [Parameter(ParameterSetName = "EXTEND")]
-    [Parameter(ParameterSetName = "DISABLE")]
-    [String] $TestOU = "OU=Enabled Users,OU=User Accounts,DC=theuce,DC=onmicrosoft,DC=com"
+    [String] $EnabledAdminOU = "OU=Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
     ,
     # OU for NSE Users to be added to
     [Parameter(ParameterSetName = "TEST")]
@@ -139,7 +128,7 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String] $NSEOU = "OU=Service Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
+    [String] $EnabledNSEOU = "OU=Service Accounts,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
     ,
     # OU for Disabled Users to be added to
     [Parameter(ParameterSetName = "TEST")]
@@ -159,7 +148,17 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [String] $DisabledAdminsOU = "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
+    [String] $DisabledAdminOU = "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
+,
+    # OU for NSE Users to be added to
+    [Parameter(ParameterSetName = "TEST")]
+    [Parameter(ParameterSetName = "NEW")]
+    [Parameter(ParameterSetName = "UNLOCK")]
+    [Parameter(ParameterSetName = "RESET")]
+    [Parameter(ParameterSetName = "ENABLE")]
+    [Parameter(ParameterSetName = "EXTEND")]
+    [Parameter(ParameterSetName = "DISABLE")]
+    [String] $DisabledNSEOU = "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com"
     ,
     # UPN suffix, defaults to "uce.cia.gov"
     [Parameter(ParameterSetName = "TEST")]
@@ -229,7 +228,27 @@ param
     [Parameter(ParameterSetName = "ENABLE")]
     [Parameter(ParameterSetName = "EXTEND")]
     [Parameter(ParameterSetName = "DISABLE")]
-    [DateTime] $AccountExpirationDate   = ([DateTime]::Now).AddYears(1)
+    [DateTime] $AccountExpirationDate   = (([DateTime]::Now).AddYears(1))
+    ,
+    # Force Switch to send all object properties to the pipeline
+    [Parameter(ParameterSetName = "TEST")]
+    [Parameter(ParameterSetName = "NEW")]
+    [Parameter(ParameterSetName = "UNLOCK")]
+    [Parameter(ParameterSetName = "RESET")]
+    [Parameter(ParameterSetName = "ENABLE")]
+    [Parameter(ParameterSetName = "EXTEND")]
+    [Parameter(ParameterSetName = "DISABLE")]
+    [Switch] $Force
+    ,
+    # ADSync switch to Start-ADSyncSyncCycle
+    [Parameter(ParameterSetName = "NEW")]
+    [Parameter(ParameterSetName = "UNLOCK")]
+    [Parameter(ParameterSetName = "RESET")]
+    [Parameter(ParameterSetName = "ENABLE")]
+    [Parameter(ParameterSetName = "EXTEND")]
+    [Parameter(ParameterSetName = "DISABLE")]
+    [Switch] $ADSync
+
 ) # param
 begin
 {
@@ -290,7 +309,7 @@ begin
                     SamAccountName          = $processObject.SamAccountName
                     UserPrincipalName       = ("{0}@{1}" -f $processObject.SamAccountName, $processObject.UPN)
                     DisplayName             = $processObject.SamAccountName
-                    Path                    = $processObject.OUtoAddTo
+                    Path                    = $processObject.EnabledOU
                     Enabled                 = $true
                     AccountPassword         = (ConvertTo-SecureString $processObject.NewPassword -AsPlainText -Force)
                     ChangePasswordAtLogon   = $true
@@ -412,7 +431,26 @@ function Update-User
         {
             $FunctionName = "Disable-User"
             Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            try
+            {
+                Write-Verbose ("{0} `t`t {1} Disable-ADAccount -Identity {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+                Disable-ADAccount -Identity $processObject.ADUser -ErrorAction Stop
+                Write-Verbose ("{0} `t`t {1} Disabled {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
+                Write-Verbose ("{0} `t`t {1} Move-ADObject -Identity {2} -TargetPath {3}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName, $processObject.DisabledOU)
+                Move-ADObject -Identity $processObject.ADUser -TargetPath $processObject.DisabledOU -ErrorAction Stop
+                Write-Verbose ("{0} `t`t {1} Moved ({2}) from ({3}) to ({4})" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName, $processObject.OriginalOU, $processObject.DisabledOU)
+
+            }
+            catch
+            {
+                Write-Warning ("{0} `t`t {1} Exception {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            }
+            <#
+            Move-ADObject $adUser -TargetPath "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com" -Credential $Cred -ErrorAction Stop
+            Write-Output "Moved admin user $adUser to disabled OU"
+            Set-ADUser $adUser.Name -Description "$Today disabled due to inactivity" -Credential $Cred -ErrorAction Stop
+            #>
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
         } # process
@@ -542,27 +580,83 @@ process
         Specifies the action to be taken on the user account.
         #>
 
+        $RunAs          = ($Env:USERNAME).ToUpper()
+        $RunAsMemberOf  = (Get-ADUser $RunAs -Properties MemberOf).MemberOf
+
+        $ADUser = try
+        {
+            Get-ADUser $SamAccountName -Properties * -ErrorAction Stop
+        }
+        catch
+        {
+            $null
+        } # $ADUser
+
+        $OriginalInfo = if($null -eq $ADUser)
+        {
+            $null
+        } # if($null -eq $ADUser)
+        else
+        {
+            $ADUser.Info
+        } # $OriginalInfo
+
+        $OriginalOU = if($null -eq $ADUser)
+        {
+            $null
+        } # if($null -eq $ADUser)
+        else
+        {
+            $Split = $ADUser.DistinguishedName.Split(",")
+            ($Split | Select-Object -Last ($Split.Count-1)) -Join ","
+        } # $OriginalOU
+
+        $UserPrincipalName = if($null -eq $ADUser)
+        {
+            $null
+        } # if($null -eq $ADUser)
+        else
+        {
+            $ADUser.UserPrincipalName
+        } # $UserPrincipalName
+
         $processObject = [PSCustomObject]@{
             RunOn                   = ($Env:COMPUTERNAME).ToUpper()
-            RunAs                   = ($Env:USERNAME).ToUpper()
+            RunAs                   = $RunAs
+            RunAsMemberOf           = $RunAsMemberOf
             Begin                   = ([DateTime]::Now)
             # Change SamAccountName to lower then Title Case and reassign to SamAccountName (for when Name is all CAPS)
             SamAccountName          = (Get-Culture).TextInfo.ToTitleCase($SamAccountName.ToLower())
+            UserPrincipalName       = $UserPrincipalName
             TypeOfUser              = $null
             ActionToTake            = $ActionToTake
-            ADUser                  = $null
+            ADUser                  = $ADUser
+            OriginalOU              = $OriginalOU
+            # Telephones Notes: text block
+            OriginalInfo            = $OriginalInfo
+            UpdatedInfo             = $null
+            # Enabled and Disabled to be set based on type of account
+            EnabledOU               = $null
+            DisabledOU              = $null
+
             End                     = $null
             Duration                = $null
             Message                 = "No Action Taken"
             Results                 = $null
             NewPassword             = New-Password
+            # Standard and Test Users
             EnabledUsersOU          = $EnabledUsersOU
             DisabledUsersOU         = $DisabledUsersOU
-            AdminOU                 = $AdminOU
+            # Admin Users
+            EnabledAdminOU          = $EnabledAdminOU
+            DisabledAdminOU         = $DisabledAdminOU
+            # NSE Users
+            EnabledNSEOU            = $EnabledNSEOU
+            DisabledNSEOU           = $DisabledNSEOU
+
             UPN                     = $UPN
             RegularUserGroup        = $RegularUserGroup
             AdminUserGroup          = $AdminUserGroup
-            OUtoAddTo               = $null
             GroupsToAddTo           = [System.Collections.ArrayList]::new()
             TAOGroup                = $TAOGroup
             AzureActiveDirectoryVM  = $AzureActiveDirectoryVM
@@ -593,25 +687,29 @@ process
         if($processObject.SamAccountName.EndsWith("-ADM"))
         {
             $processObject.TypeOfUser   = "ADM"
-            $processObject.OUtoAddTo    = $AdminOU
+            $processObject.EnabledOU    = $processObject.EnabledAdminOU
+            $processObject.DisabledOU   = $processObject.DisabledAdminOU
             [void] $processObject.GroupsToAddTo.Add($AdminUserGroup)
         } # ADM
         elseif($processObject.SamAccountName.EndsWith("-TST"))
         {
             $processObject.TypeOfUser   = "TEST"
-            $processObject.OUtoAddTo    = $EnabledUsersOU
+            $processObject.EnabledOU    = $processObject.EnabledUsersOU
+            $processObject.DisabledOU   = $processObject.DisabledUsersOU
             [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
         } # TST
         elseif($processObject.SamAccountName.EndsWith("-NSE"))
         {
             $processObject.TypeOfUser   = "NSE"
-            $processObject.OUtoAddTo    = $NSEOU
+            $processObject.EnabledOU    = $processObject.EnabledNSEOU
+            $processObject.DisabledOU   = $processObject.DisabledNSEOU
             [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
         } # NSE
         else
         {
             $processObject.TypeOfUser   = "STANDARD"
-            $processObject.OUtoAddTo    = $EnabledUsersOU
+            $processObject.EnabledOU    = $processObject.EnabledUsersOU
+            $processObject.DisabledOU   = $processObject.DisabledUsersOU
             [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
         } # Default type of user to STANDARD
 
@@ -641,6 +739,14 @@ process
             }
         ) # $processObject.ADUser
 
+        $processObject.UserPrincipalName = if($null -eq $processObject.ADUser)
+        {
+            $null
+        } # if($null -eq $processObject.ADUser)
+        else
+        {
+            $processObject.ADUser.UserPrincipalName
+        } # $processObject.UserPrincipalName
 
         <#
         .SYNOPSIS
@@ -656,7 +762,7 @@ process
         #>
 
 
-        switch ($processObject.ActionTake)
+        switch ($processObject.ActionToTake)
         {
             "DISABLE"   {
                 $action = "DISABLE"
@@ -736,7 +842,16 @@ process
         } # switch ($processObject.ActionTake)
 
         # Add the $processObject to the $UsersProcessed array list
-        [void] $UsersProcessed.Add($processObject)
+        if($PSBoundParameters.ContainsKey("Force"))
+        {
+            Write-Verbose ("{0} Force switch sent, adding all properties to pipeline" -f [DateTime]::Now)
+            [void] $UsersProcessed.Add($processObject)
+        } # If Force all propeties
+        else
+        {
+            Write-Verbose ("{0} Force switch Not present, sending default properties" -f [DateTime]::Now)
+            [void] $UsersProcessed.Add($($processObject | Select-Object SamAccountName, NewPassword, Message))
+        } # Default properties to minimize output
     } # try
     catch
     {
@@ -762,41 +877,46 @@ end
 
         $target = $AzureActiveDirectoryVM
         $action = "Start-ADSyncSyncCycle"
-        if($PSCmdlet.ShouldProcess($target,$action))
+
+        if($PSBoundParameters.ContainsKey("ADSync"))
         {
-            Write-Verbose ("{0} BEGIN ({1}) on ({2})" -f [DateTime]::Now, $action, $AzureActiveDirectoryVM)
+            Write-Verbose ("{0} `t ADSync Switch present, process for ({1}) on ({2})" -f [DateTime]::Now, $action, $AzureActiveDirectoryVM)
 
-            try
-                {
-                    # Synchronize AD with AzureAD
-                    $ScriptBlock = {
-                        try
-                        {
-                            Import-Module ADSync -ErrorAction Stop
-                            $ADSyncSyncResults = Start-ADSyncSyncCycle -PolicyType Delta -ErrorAction Stop
+            if($PSCmdlet.ShouldProcess($target,$action))
+            {
+                Write-Verbose ("{0} BEGIN ({1}) on ({2})" -f [DateTime]::Now, $action, $AzureActiveDirectoryVM)
 
-                            [PSCustomObject]@{
-                                ADSyncSyncResults     = $ADSyncSyncResults
-                            } # Custom Object to return
-                        } # try
-                        catch
-                        {
-                            [PSCustomObject]@{
-                                ADSyncSyncResults     = $Error[0]
-                            } # Custom Object to Return
-                        } # catch
-                    } # $ScriptBlock
+                try
+                    {
+                        # Synchronize AD with AzureAD
+                        $ScriptBlock = {
+                            try
+                            {
+                                Import-Module ADSync -ErrorAction Stop
+                                $ADSyncSyncResults = Start-ADSyncSyncCycle -PolicyType Delta -ErrorAction Stop
 
-                    $SyncResults = Invoke-Command -ScriptBlock $ScriptBlock -ComputerName $AzureActiveDirectoryVM -ErrorAction Stop -HideComputerName
-                    Write-Verbose ("{0} Active Directory SyncResults ({1}) from ({2})" -f [DateTime]::Now, $SyncResults.ADSyncSyncResults.Result, $AzureActiveDirectoryVM)
-                } # try Invoke on vm
-                catch
-                {
-                    Write-Warning ($Error[0].Exception.Message)
-                }
-            Write-Verbose ("{0} END ({1}) on ({2})" -f [DateTime]::Now, $action, $AzureActiveDirectoryVM)
-        } # ShouldProcess Start-ADDSyncCycle
+                                [PSCustomObject]@{
+                                    ADSyncSyncResults       = $ADSyncSyncResults
+                                } # Custom Object to return
+                            } # try
+                            catch
+                            {
+                                [PSCustomObject]@{
+                                    ADSyncSyncResults       = $Error[0]
+                                } # Custom Object to Return
+                            } # catch
+                        } # $ScriptBlock
 
+                        $SyncResults = Invoke-Command -ScriptBlock $ScriptBlock -ComputerName $AzureActiveDirectoryVM -ErrorAction Stop -HideComputerName
+                        Write-Verbose ("{0} Active Directory SyncResults ({1}) from ({2})" -f [DateTime]::Now, $SyncResults.ADSyncSyncResults.Result, $AzureActiveDirectoryVM)
+                    } # try Invoke on vm
+                    catch
+                    {
+                        Write-Warning ($Error[0].Exception.Message)
+                    }
+                Write-Verbose ("{0} END ({1}) on ({2})" -f [DateTime]::Now, $action, $AzureActiveDirectoryVM)
+            } # ShouldProcess Start-ADDSyncCycle
+        } # if($PSBoundParameters.ContainsKey("ADSync"))
     Write-Verbose ("{0} Leaving EndProccessing {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
     # Retun the collection of Users Processed to the pipeline
     $UsersProcessed
