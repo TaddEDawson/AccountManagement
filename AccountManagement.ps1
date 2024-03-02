@@ -896,13 +896,13 @@ end
                                 $ADSyncSyncResults = Start-ADSyncSyncCycle -PolicyType Delta -ErrorAction Stop
 
                                 [PSCustomObject]@{
-                                    ADSyncSyncResults       = $ADSyncSyncResults
+                                    ADSyncSyncResults = $ADSyncSyncResults
                                 } # Custom Object to return
                             } # try
                             catch
                             {
                                 [PSCustomObject]@{
-                                    ADSyncSyncResults       = $Error[0]
+                                    ADSyncSyncResults = $Error[0]
                                 } # Custom Object to Return
                             } # catch
                         } # $ScriptBlock
@@ -915,7 +915,7 @@ end
                         Write-Warning ($Error[0].Exception.Message)
                     }
                 Write-Verbose ("{0} END ({1}) on ({2})" -f [DateTime]::Now, $action, $AzureActiveDirectoryVM)
-            } # ShouldProcess Start-ADDSyncCycle
+            } # ShouldProcess Start-ADSyncSyncCycle
         } # if($PSBoundParameters.ContainsKey("ADSync"))
     Write-Verbose ("{0} Leaving EndProccessing {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
     # Retun the collection of Users Processed to the pipeline
