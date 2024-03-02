@@ -45,7 +45,7 @@ function Get-AccountInfo
         $FunctionName = $MyInvocation.MyCommand.Name
         Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
         # Split the strings into separate lines
-        
+
         $CurrentLines = $CurrentInfo -split "`n"
         Write-Verbose ("{0} `t`t`tCurrent Lines: {1}" -f [DateTime]::Now, $CurrentLines.Count)
  
@@ -71,7 +71,8 @@ function Get-AccountInfo
     } # process
 } # End of Get-AccountInfo function
 
-$ContentToAdd = $null
-$InfoToAdd = ("{0:MM-dd-yyyy HH:mm:ss.fff}" -f [DateTime]::Now)
-$ContentToAdd = Get-AccountInfo -CurrentInfo $ContentToAdd -InfoToAdd $InfoToAdd -verbose
-$ContentToAdd
+$ContentToAdd = ("{0:MM-dd-yyyy HH:mm:ss.fff}" -f [DateTime]::Now)
+
+$ContentToAdd = Get-AccountInfo -CurrentInfo $ContentToAdd -InfoToAdd ("{0:MM-dd-yyyy HH:mm:ss.fff}" -f [DateTime]::Now) -Verbose
+
+$ContentToAdd 
