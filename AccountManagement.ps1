@@ -2,62 +2,98 @@
 <#
     .SYNOPSIS
         This script is used to manage user accounts in Active Directory.
+
     .DESCRIPTION
         This script is used to manage user accounts in Active Directory.
+
     .PARAMETER SamAccountName
         The SamAccountName of the user account to manage
+
     .PARAMETER TEST
         Used to test the user account for specific properties
+
     .PARAMETER NEW
         Used to create a new user account
+
     .PARAMETER UNLOCK
         Used to unlock a user account
+
     .PARAMETER RESET
         Used to reset a user account
+
     .PARAMETER ENABLE
         Used to enable a user account
+
     .PARAMETER EXTEND
         Used to extend a user account
+
     .PARAMETER DISABLE
         Used to disable a user account
+
     .PARAMETER EnabledUsersOU
         The OU for user to be added to
+
     .PARAMETER AdminOU
         The OU for ADMIN Users to be added to
+
     .PARAMETER TestOU
         The OU for TEST Users to be added to
+
     .PARAMETER NSEOU
         The OU for NSE Users to be added to
+
     .PARAMETER DisabledUsersOU
         The OU for Disabled Users to be added to
+
     .PARAMETER UPN
         UPN suffix, defaults to "uce.cia.gov"
+
     .PARAMETER RegularUserGroup
         Regular User Group Name for add, Add Users to the "UCE Users" Group to provide access to the WVD Users Host Pool
+
     .PARAMETER AdminUserGroup
         UCE Admin Group Name
+
     .PARAMETER TAOGroup
         TAO User group
+
     .PARAMETER AzureActiveDirectoryVM
         AzureActiveDirectoryVM
+
     .PARAMETER OnSiteOnlyProperty
         Onsite Only property
+
     .PARAMETER OnSiteOnlyValue
         Onsite Only value
+
     .PARAMETER OnSiteOnly
         Onsite Only
 
+    .PARAMETER AccountExpirationDate
+        Account Expiration Date
+
+    .PARAMETER Force
+        Force Switch to send all object properties to the pipeline
+
+    .PARAMETER ADSync
+        ADSync switch to Start-ADSyncSyncCycle
+    
     .EXAMPLE
         .\AccountManagement.ps1 -SamAccountName "jsmith" -TEST -Verbose -WhatIf
         Tests the user account for specific properties
+
     .EXAMPLE
         "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
+
     .EXAMPLE
         "TestUser20240229" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
+
     .EXAMPLE
         "TestUser20240229" | .\AccountManagement.ps1 -NEW -Verbose -Force
+
     .NOTES
         AccountExpirationDate   = (Get-Date).AddYears(1)
+        
 #>
 [CmdletBinding(
     DefaultParameterSetName = "TEST",
