@@ -811,130 +811,133 @@ process
     Write-Verbose ("{0} Entering`tProcessRecord {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
     try
     {
-        <#
-        .SYNOPSIS
-            This variable stores the action to be taken based on the parameter set name.
-
-
-        .DESCRIPTION
-            The $ActionToTake variable is used to determine the action to be taken in the script based on the parameter set name. It is assigned the value of the parameter set name converted to uppercase.
-        #>
+        # Get the Action to take based on the ParameterSetName
         $ActionToTake = ($PSCmdlet.ParameterSetName.ToUpper())
 
-
-        <#
-        .DESCRIPTION
-        The script creates a process object with various properties to track the execution of account management tasks.
-        The process object includes information such as the computer name, username, start time, action to take, and result.
-
-        .PARAMETER ActionToTake
-        Specifies the action to be taken on the user account.
-        #>
-
+        # Get the Runas user and the groups the user is a member of
         $RunAs          = ($Env:USERNAME).ToUpper()
         $RunAsMemberOf  = (Get-ADUser $RunAs -Properties MemberOf).MemberOf
 
-        $ADUser = try
-        {
-            Get-ADUser $SamAccountName -Properties * -ErrorAction Stop
-        }
-        catch
-        {
-            $null
-        } # $ADUser
+        # Get the Active Directory User object if the account exists
+        $ADUser =   try
+                    {
+                        Get-ADUser $SamAccountName -Properties * -ErrorAction Stop
+                    }
+                    catch
+                    {
+                        $null
+                    } # $ADUser
 
+        # Get the Original Information for the user
         $OriginalInfo = if($null -eq $ADUser)
-        {
-            $null
-        } # if($null -eq $ADUser)
-        else
-        {
-            $ADUser.Info
-        } # $OriginalInfo
+                        {
+                            $null
+                        } # if($null -eq $ADUser)
+                        else
+                        {
+                            $ADUser.Info
+                        } # $OriginalInfo
 
-        $OriginalOU = if($null -eq $ADUser)
-        {
-            $null
-        } # if($null -eq $ADUser)
-        else
-        {
-            $Split = $ADUser.DistinguishedName.Split(",")
-            ($Split | Select-Object -Last ($Split.Count-1)) -Join ","
-        } # $OriginalOU
+        # Get the Original OU for the user
+        $OriginalOU     = if($null -eq $ADUser)
+                        {
+                            $null
+                        } # if($null -eq $ADUser)
+                        else
+                        {
+                            # Get the DistinguishedName and split it into an array
+                            $Split = $ADUser.DistinguishedName.Split(",")
+                            # Join the last elements (excluding the first element) of the array to get the Original OU
+                            ($Split | Select-Object -Last ($Split.Count-1)) -Join ","
+                        } # $OriginalOU
 
+        # Get the UserPrincipalName for the user
         $UserPrincipalName = if($null -eq $ADUser)
-        {
-            $null
-        } # if($null -eq $ADUser)
-        else
-        {
-            $ADUser.UserPrincipalName
-        } # $UserPrincipalName
+                        {
+                            $null
+                        } # if($null -eq $ADUser)
+                        else
+                        {
+                            $ADUser.UserPrincipalName
+                        } # $UserPrincipalName
 
+        # Create a new object to hold the process information
         $processObject = [PSCustomObject]@{
+            # RunOn is the computer the script is running on
             RunOn                   = ($Env:COMPUTERNAME).ToUpper()
+            # RunAs is the user running the script
             RunAs                   = $RunAs
+            # RunAsMemberOf is the groups the user is a member of
             RunAsMemberOf           = $RunAsMemberOf
+            # Begin is the time the process started
             Begin                   = ([DateTime]::Now)
             # Change SamAccountName to lower then Title Case and reassign to SamAccountName (for when Name is all CAPS)
             SamAccountName          = (Get-Culture).TextInfo.ToTitleCase($SamAccountName.ToLower())
+            # UserPrincipalName is the email address for the user
             UserPrincipalName       = $UserPrincipalName
+            # TypeOfUser is the type of user based on the SamAccountName suffix
             TypeOfUser              = $null
+            # ActionToTake is the action to take based on the ParameterSetName
             ActionToTake            = $ActionToTake
+            # ADUser is the Active Directory User object
             ADUser                  = $ADUser
+            # OriginalOU is the original OU for the user
             OriginalOU              = $OriginalOU
-            # Telephones Notes: text block
+            # OriginalInfo is the Telephones Notes: limited to 1024 characters, keep last 5 lines
             OriginalInfo            = $OriginalInfo
+            # UpdatedInfo is the updated Telephones Notes: limited to 1024 characters, keep last 5 lines
             UpdatedInfo             = $null
-            # Enabled and Disabled to be set based on type of account
+            # EnabledOU to be set based on type of account
             EnabledOU               = $null
+            # DisabledOU to be set based on type of account
             DisabledOU              = $null
-
+            # End is the time the process ended
             End                     = $null
+            # Duration is the time the process took
             Duration                = $null
+            # Message is the result of the process
             Message                 = "No Action Taken"
+            # Results is the result of the process
             Results                 = $null
+            # NewPassword is the new password for the user
             NewPassword             = New-Password
-            # Standard and Test Users
+            # Enabled OU for Standard and Test Users
             EnabledUsersOU          = $EnabledUsersOU
+            # Disabled OU for Standard and Test Users
             DisabledUsersOU         = $DisabledUsersOU
-            # Admin Users
+            # Enabled OU for Admin Users
             EnabledAdminOU          = $EnabledAdminOU
+            # Disabled OU for Admin Users
             DisabledAdminOU         = $DisabledAdminOU
-            # NSE Users
+            # Enabled OU for NSE Users
             EnabledNSEOU            = $EnabledNSEOU
+            # Disabled OU for NSE Users
             DisabledNSEOU           = $DisabledNSEOU
-
+            # UPN is the User Principal Name suffix
             UPN                     = $UPN
+            # RegularUserGroup is the group to add regular users to
             RegularUserGroup        = $RegularUserGroup
+            # AdminUserGroup is the group to add admin users to
             AdminUserGroup          = $AdminUserGroup
+            # GroupsToAddTo is the groups to add the user to
             GroupsToAddTo           = [System.Collections.ArrayList]::new()
+            # TAOGroup is the group to add the user to if needed
             TAOGroup                = $TAOGroup
+            # AzureActiveDirectoryVM is the Azure Active Directory VM
             AzureActiveDirectoryVM  = $AzureActiveDirectoryVM
+            # OnSiteOnlyProperty is the property to set for OnSiteOnly
             OnSiteOnlyProperty      = $OnSiteOnlyProperty
+            # OnSiteOnlyValue is the value to set for OnSiteOnly
             OnSiteOnlyValue         = $null
+            # OnSiteOnly is the property to set for OnSiteOnly
             OnSiteOnly              = $true
+            # AccountExpirationDate is the date the account will expire
             AccountExpirationDate   = $AccountExpirationDate
+            # Exception is the exception that occurred
             Exception               = $null
         } # $processObject
 
-
-        <#
-        .DESCRIPTION
-        This code block assigns a value to the $processObject.TypeOfUser variable based on the SamAccountName suffix.
-        If the SamAccountName ends with "-ADM", the type of user is set to "ADM".
-        If it ends with "-TST", the type of user is set to "TEST".
-        If it ends with "-NSE", the type of user is set to "NSE".
-        For any other suffix, the type of user is set to "STANDARD".
-
-        .PARAMETER processObject
-        The object representing the user being processed.
-
-        .OUTPUTS
-        The type of user assigned to the $processObject.TypeOfUser variable.
-        #>
-
-
+        # Set TypeOfUser, EnabledOU, DisabledOU, and GroupsToAddTo based on the SamAccountName suffix
         if($processObject.SamAccountName.EndsWith("-ADM"))
         {
             $processObject.TypeOfUser   = "ADM"
@@ -964,54 +967,33 @@ process
             [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
         } # Default type of user to STANDARD
 
-
-        <#
-        .DESCRIPTION
-            This code block attempts to retrieve an Active Directory user object using the Get-ADUser cmdlet.
-            If the user is found, the user object is assigned to the $processObject.ADUser variable.
-            If the user is not found, the string "NOT FOUND" is assigned to the $processObject.ADUser variable.
-
-        .PARAMETER SamAccountName
-            The SamAccountName of the user to retrieve.
-
-        .OUTPUTS
-            Microsoft.ActiveDirectory.Management.ADUser
-        #>
-
-
+        # Verify ADUser is not null
         $processObject.ADUser = $(
-            try
-            {
-                Get-ADUser $processObject.SamAccountName -Properties *
-            }
-            catch
-            {
-                "NOT FOUND"
-            }
-        ) # $processObject.ADUser
+                                    try
+                                    {
+                                        Get-ADUser $processObject.SamAccountName -Properties *
+                                    } # try
+                                    catch
+                                    {
+                                        "NOT FOUND"
+                                    } # catch
+                                ) # $processObject.ADUser
 
+        # Set the UserPrincipalName based on the ADUser, if present
         $processObject.UserPrincipalName = if($null -eq $processObject.ADUser)
-        {
-            $null
-        } # if($null -eq $processObject.ADUser)
-        else
-        {
-            $processObject.ADUser.UserPrincipalName
-        } # $processObject.UserPrincipalName
+                                    {
+                                        $null
+                                    } # if($null -eq $processObject.ADUser)
+                                    else
+                                    {
+                                        $processObject.ADUser.UserPrincipalName
+                                    } # $processObject.UserPrincipalName
 
         <#
-        .SYNOPSIS
-            Executes different actions based on the value of $processObject.ActionTake.
-
-        .DESCRIPTION
             This switch statement executes different actions based on the value of $processObject.ActionTake.
             The available actions are: DISABLE, EXTEND, ENABLE, NEW, RESET, UNLOCK. If none of these actions match,
             it will call the Test-User function with $processObject as a parameter.
-
-        .PARAMETER processObject
-            The object containing the action to be taken and the SamAccountName.
         #>
-
 
         switch ($processObject.ActionToTake)
         {
@@ -1134,16 +1116,17 @@ process
     } # try
     catch
     {
+        # Set the Exception property to the exception that occurred
         $processObject.Exception = $Error[0].Exception
         Write-Error ("{0} EXCEPTION : ({1})" -f [DateTime]::Now, $processObject.Exception)
     } # catch
     finally
     {
+        # Set the End and Duration properties
         $processObject.End      = [DateTime]::Now
         $processObject.Duration = [Math]::Round(($processObject.End - $processObject.Begin).TotalSeconds,2)
         Write-Verbose ("{0}`t`tProcessed ({1}) for ({2}) in ({3}) seconds" -f [DateTime]::Now, $processObject.SamAccountName, $processObject.ActionToTake, $processObject.Duration)
     } # finally
-
 
     Write-Verbose ("{0} Leaving `tProccessRecord {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
 } # process
