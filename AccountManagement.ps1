@@ -297,7 +297,6 @@ begin
     $UsersProcessed         = [System.Collections.ArrayList]::new()
     $BeginProcessing        = [DateTime]::Now
 
-
     function Test-User
     {
         [CmdletBinding()]
@@ -307,7 +306,7 @@ begin
         ) # param
         process
         {
-            $FunctionName = "Test-User"
+            $FunctionName = $MyInvocation.MyCommand.Name
             Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
             if($null -ne $processObject.ADUser)
             {
@@ -319,13 +318,13 @@ begin
             } # User not found in AD
 
 
-            [PSCustomObject]@{
-                Action = $FunctionName
-                UserExists = $UserExists
-            } # [PSCustomObject]
-
+            $TestUser = [PSCustomObject]@{
+                            Action = $FunctionName
+                            UserExists = $UserExists
+                        } # [PSCustomObject]
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            $TestUser
         } # process
     } # function Test-User
 
@@ -339,7 +338,7 @@ begin
         ) # param
         process
         {
-            $FunctionName = "New-User"
+            $FunctionName = $MyInvocation.MyCommand.Name
             Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
             $NewADUserProperties = [Ordered]@{
@@ -400,7 +399,7 @@ begin
             try
             {
 
-                $FunctionName = "Unlock-User"
+                $FunctionName = $MyInvocation.MyCommand.Name
                 Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
     
                 $UnlockedUser = [PSCustomObject]@{
@@ -423,7 +422,7 @@ begin
             } # catch
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
-            $UnlockedUser
+            Return $UnlockedUser
         } # process
     } # function Unlock-User
 
@@ -439,7 +438,7 @@ begin
         {
             try
             {
-                $FunctionName = "Reset-User"
+                $FunctionName = $MyInvocation.MyCommand.Name
                 Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
                 $ResetUser = [PSCustomObject]@{
                         ADUser          = (Get-ADuser $processObject.SamAccountName -Properties *)
@@ -488,7 +487,7 @@ begin
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
             $ResetUser.ADUser = (Get-ADuser $processObject.SamAccountName -Properties *)
-            $ResetUser
+            Return $ResetUser
         } # process
     } # function Reset-User
 
@@ -503,7 +502,7 @@ begin
         {
             try
             {
-                $FunctionName = "Enable-User"
+                $FunctionName = $MyInvocation.MyCommand.Name
                 Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
                 $EnabledUser = [PSCustomObject]@{
@@ -554,7 +553,7 @@ begin
             } # catch
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
-            $EnabledUser
+            Return $EnabledUser
         } # process
     } # function Enable-User
 
@@ -568,11 +567,16 @@ function Update-User
         ) # param
         process
         {
-            $FunctionName = "Update-User"
+            $FunctionName = $MyInvocation.MyCommand.Name
             Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
-
+            $ExtendUser = [PSCustomObject]@{
+                ADUser          = $null
+                Exception       = $null
+            } # $UpdateUser
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            $ExtendUser = Get-ADuser -Identity $processObject.SamAccountName -Properties *
+            Return $ExtendUser
         } # process
     } # function Extend-User
 
@@ -586,7 +590,7 @@ function Update-User
         ) # param
         process
         {
-            $FunctionName = "Disable-User"
+            $FunctionName = $MyInvocation.MyCommand.Name
             Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
             try
             {
@@ -628,7 +632,7 @@ function Update-User
                 Write-Warning $DisabledUser.Exception
             }
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
-            $DisabledUser
+            Return $DisabledUser
         } # process
     } # function Disable-User
 
@@ -660,7 +664,7 @@ function Update-User
         )
         process
         {
-            $FunctionName = "Get-AccountInfoForUpdate"
+            $FunctionName = $MyInvocation.MyCommand.Name
             Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
 
             Write-Verbose ("{0} `t`t`tCurrent info value is ({1}) characters long" -f [DateTime]::Now, $CurrentInfo.Length)
@@ -701,7 +705,7 @@ function Update-User
             } # Not ($NewLength -gt $MaxCharacterLength)
             Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
             # Return NewInfo to the pipeline
-            $NewInfo
+            Return $NewInfo
         } # process
     } # function Get-AccountInfoForUpdate
     <# 
@@ -724,7 +728,7 @@ function Update-User
         ) # param
         process
         {
-            $FunctionName = "New-Password"
+            $FunctionName = $MyInvocation.MyCommand.Name
             Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
             function Get-NonRepeatingIndex
             {
@@ -759,12 +763,12 @@ function Update-User
 
                         #   Write-Verbose ("`t{0} {1} {2} {3}" -f $ReturnValue, $FirstRandom, ($ReturnValue -eq $FirstRandom), $Previous)
                         } Until ($ReturnValue -ne $Previous)
-                        return $ReturnValue
-                    }
+                        Return $ReturnValue
+                    } # if ($FirstRandom -eq $Previous)
                     else
                     {
-                        return $FirstRandom
-                    }
+                        Return $FirstRandom
+                    } # Not if ($FirstRandom -eq $Previous)
                 } # process
             } # function Get-NonRepeatingIndex
 
@@ -800,7 +804,7 @@ function Update-User
             }
             Until ($RandomString.Length -eq $Length)
             Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
-            return $RandomString
+            Return $RandomString
         } # process
     } # function New-Password
 
@@ -819,14 +823,16 @@ process
         $RunAsMemberOf  = (Get-ADUser $RunAs -Properties MemberOf).MemberOf
 
         # Get the Active Directory User object if the account exists
-        $ADUser =   try
-                    {
-                        Get-ADUser $SamAccountName -Properties * -ErrorAction Stop
-                    }
-                    catch
-                    {
-                        $null
-                    } # $ADUser
+         $processObject.ADUser = $(
+                                    try
+                                    {
+                                        Get-ADUser $processObject.SamAccountName -Properties *
+                                    } # try
+                                    catch
+                                    {
+                                        $null
+                                    } # catch
+                                ) # $processObject.ADUser
 
         # Get the Original Information for the user
         $OriginalInfo = if($null -eq $ADUser)
@@ -861,6 +867,18 @@ process
                             $ADUser.UserPrincipalName
                         } # $UserPrincipalName
 
+   
+        # Set the UserPrincipalName based on the ADUser, if present
+        $processObject.UserPrincipalName = if($null -eq $processObject.ADUser)
+                                    {
+                                        $null
+                                    } # if($null -eq $processObject.ADUser)
+                                    else
+                                    {
+                                        $processObject.ADUser.UserPrincipalName
+                                    } # $processObject.UserPrincipalName
+                       
+                        
         # Create a new object to hold the process information
         $processObject = [PSCustomObject]@{
             # RunOn is the computer the script is running on
@@ -937,57 +955,36 @@ process
             Exception               = $null
         } # $processObject
 
-        # Set TypeOfUser, EnabledOU, DisabledOU, and GroupsToAddTo based on the SamAccountName suffix
-        if($processObject.SamAccountName.EndsWith("-ADM"))
-        {
-            $processObject.TypeOfUser   = "ADM"
-            $processObject.EnabledOU    = $processObject.EnabledAdminOU
-            $processObject.DisabledOU   = $processObject.DisabledAdminOU
-            [void] $processObject.GroupsToAddTo.Add($AdminUserGroup)
-        } # ADM
-        elseif($processObject.SamAccountName.EndsWith("-TST"))
-        {
-            $processObject.TypeOfUser   = "TEST"
-            $processObject.EnabledOU    = $processObject.EnabledUsersOU
-            $processObject.DisabledOU   = $processObject.DisabledUsersOU
-            [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
-        } # TST
-        elseif($processObject.SamAccountName.EndsWith("-NSE"))
-        {
-            $processObject.TypeOfUser   = "NSE"
-            $processObject.EnabledOU    = $processObject.EnabledNSEOU
-            $processObject.DisabledOU   = $processObject.DisabledNSEOU
-            [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
-        } # NSE
-        else
-        {
-            $processObject.TypeOfUser   = "STANDARD"
-            $processObject.EnabledOU    = $processObject.EnabledUsersOU
-            $processObject.DisabledOU   = $processObject.DisabledUsersOU
-            [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
-        } # Default type of user to STANDARD
+       # Set TypeOfUser, EnabledOU, DisabledOU, and GroupsToAddTo based on the SamAccountName suffix
+       if($processObject.SamAccountName.ToUpper().EndsWith("-ADM"))
+       {
+           $processObject.TypeOfUser   = "ADM"
+           $processObject.EnabledOU    = $processObject.EnabledAdminOU
+           $processObject.DisabledOU   = $processObject.DisabledAdminOU
+           [void] $processObject.GroupsToAddTo.Add($AdminUserGroup)
+       } # ADM
+       elseif($processObject.SamAccountName.ToUpper().EndsWith("-TST"))
+       {
+           $processObject.TypeOfUser   = "TEST"
+           $processObject.EnabledOU    = $processObject.EnabledUsersOU
+           $processObject.DisabledOU   = $processObject.DisabledUsersOU
+           [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
+       } # TST
+       elseif($processObject.SamAccountName.ToUpper().EndsWith("-NSE"))
+       {
+           $processObject.TypeOfUser   = "NSE"
+           $processObject.EnabledOU    = $processObject.EnabledNSEOU
+           $processObject.DisabledOU   = $processObject.DisabledNSEOU
+           [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
+       } # NSE
+       else
+       {
+           $processObject.TypeOfUser   = "STANDARD"
+           $processObject.EnabledOU    = $processObject.EnabledUsersOU
+           $processObject.DisabledOU   = $processObject.DisabledUsersOU
+           [void] $processObject.GroupsToAddTo.Add($RegularUserGroup)
+       } # Default type of user to STANDARD
 
-        # Verify ADUser is not null
-        $processObject.ADUser = $(
-                                    try
-                                    {
-                                        Get-ADUser $processObject.SamAccountName -Properties *
-                                    } # try
-                                    catch
-                                    {
-                                        "NOT FOUND"
-                                    } # catch
-                                ) # $processObject.ADUser
-
-        # Set the UserPrincipalName based on the ADUser, if present
-        $processObject.UserPrincipalName = if($null -eq $processObject.ADUser)
-                                    {
-                                        $null
-                                    } # if($null -eq $processObject.ADUser)
-                                    else
-                                    {
-                                        $processObject.ADUser.UserPrincipalName
-                                    } # $processObject.UserPrincipalName
 
         <#
             This switch statement executes different actions based on the value of $processObject.ActionTake.
