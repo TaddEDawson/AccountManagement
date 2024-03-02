@@ -52,7 +52,10 @@
         Tests the user account for specific properties
     .EXAMPLE
         "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
-
+    .EXAMPLE
+        "TestUser20240229" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
+    .EXAMPLE
+        "TestUser20240229" | .\AccountManagement.ps1 -NEW -Verbose -Force
     .NOTES
         AccountExpirationDate   = (Get-Date).AddYears(1)
 #>
@@ -317,7 +320,7 @@ begin
                     Confirm                 = $false
                     ErrorAction             = "Stop"
                 } # $NewADUserProperties
-           
+
             $NewUser = [PSCustomObject]@{
                             SamAccountName  = $processObject.SamAccountName
                             Created         = $false
@@ -330,8 +333,8 @@ begin
             try
             {
                 New-ADUser @NewADUserProperties
-   
-                $ADUser                 = Get-ADUser $processObject.SamAccountName -Properties whenCreated -ErrorAction Stop
+
+                $ADUser                 = Get-ADUser $processObject.SamAccountName -Properties * -ErrorAction Stop
                 $NewUser.ADUser         = $ADUser
                 $NewUser.Enabled        = $ADUser.Enabled
                 $NewUser.Created        = if($ADUser){$true}else{$false}
@@ -358,11 +361,33 @@ begin
         ) # param
         process
         {
-            $FunctionName = "Unlock-User"
-            Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            try
+            {
 
+                $FunctionName = "Unlock-User"
+                Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+    
+                $UnlockedUser = [PSCustomObject]@{
+                    ADUser      = (Get-ADuser -Identity $processObject.SamAccountName)
+                    Exception = $null
+                } # $UnlockedUser
+
+                # Unlock account
+                Write-Verbose ("{0} `t`t`t {1} : Unlock ({2})" -f [DateTime]::Now, $FunctionName, $UnlockedUser.ADUser.UserPrincipalName)
+                Unlock-ADAccount -Identity $processObject.SamAccountName -ErrorAction Stop
+                # Update info collection value
+                $processObject.UpdatedInfo          = ($processObject.OriginalInfo + ("{0:yyyy-MM-dd HH:mm:ss} Account Unlocked" -f [DateTime]::Now))
+                # Update the ASUser info with new values
+                $UnlockedUser.ADUser | Set-ADUser -Replace @{info = $processObject.UpdatedInfo}
+            } # try
+            catch
+            {
+                $UnlockedUser.Exception = $_
+                Write-Warning $UnlockedUser.Exception
+            } # catch
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            $UnlockedUser
         } # process
     } # function Unlock-User
 
@@ -376,11 +401,58 @@ begin
         ) # param
         process
         {
-            $FunctionName = "Reset-User"
-            Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            try
+            {
+                $FunctionName = "Reset-User"
+                Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+                $ResetUser = [PSCustomObject]@{
+                        ADUser          = (Get-ADuser $processObject.SamAccountName -Properties *)
+                        Message         = $null
+                        Exception       = $null
+                } # $ResetUser Custom Object
 
+                # Enable Account
+                Write-Verbose ("{0} `t`t`t {1} : Account Enabled" -f [DateTime]::Now, $FunctionName)
+                Enable-ADAccount -Identity $processObject.SamAccountName -ErrorAction Stop
+                $ResetUser.Message = ("`n{0:yyyy-MM-dd HH:mm:ss} Account Enabled" -f [DateTime]::Now)
 
+                # Assign new password for account
+                Write-Verbose ("{0} `t`t`t {1} : Assign new password to ({2})" -f [DateTime]::Now, $FunctionName,$ResetUser.ADUser.UserPrincipalName)
+                $ResetUser.ADUser | Set-ADAccountPassword -NewPassword (ConvertTo-SecureString -String $processObject.NewPassword -AsPlainText -Force) -Reset
+                $ResetUser.Message = $ResetUser.Message + ("`n{0:yyyy-MM-dd HH:mm:ss} New Password Assigned" -f [DateTime]::Now)
+
+                # Unlock account
+                Write-Verbose ("{0} `t`t`t {1} : Unlock ({2})" -f [DateTime]::Now, $FunctionName,$ResetUser.ADUser.UserPrincipalName)
+                Unlock-ADAccount -Identity $processObject.SamAccountName -ErrorAction Stop
+                $ResetUser.Message = $ResetUser.Message + ("`n{0:yyyy-MM-dd HH:mm:ss} Account Unlocked" -f [DateTime]::Now)
+
+                # Move account to Correct OU
+                Write-Verbose ("{0} `t`t`t {1} : Move ({2}) to ({3})" -f [DateTime]::Now, $FunctionName, $ResetUser.ADUser.UserPrincipalName, $processObject.EnabledOU)
+                Move-ADObject -Identity $ResetUser.ADUser -TargetPath $processObject.EnabledOU -ErrorAction Stop
+                $ResetUser.Message = $ResetUser.Message + ("`n{0:yyyy-MM-dd HH:mm:ss} Account Moved to {1}" -f [DateTime]::Now, $processObject.EnabledOU)
+
+                # Update account Expiration Date
+                Write-Verbose ("{0} `t`t`t {1} : Update Expiration Date for ({2}) to ({3})" -f [DateTime]::Now, $FunctionName,$ResetUser.ADUser.UserPrincipalName, $processObject.AccountExpirationDate)
+                Set-ADAccountExpiration -Identity $processObject.SamAccountName -DateTime $processObject.AccountExpirationDate
+                $ResetUser.Message = $ResetUser.Message + ("`n{0:yyyy-MM-dd HH:mm:ss} Account Expiration updated to {1}" -f [DateTime]::Now, $processObject.AccountExpirationDate)
+
+                # Update the Account Information Property
+                Write-Verbose ("{0} `t`t`t {1} : Update Account info property for ({2})" -f [DateTime]::Now, $FunctionName, $ResetUser.ADUser.UserPrincipalName )
+                $ResetUser.ADUser | Set-ADUser -Replace @{info = ($ResetUser.ADUser.info + $ResetUser.Message)}
+
+                # Refresh the properties for the Active Directory User
+                Write-Verbose ("{0} `t`t`t {1} : Refresh the Active Directiry User properties for ({2})" -f [DateTime]::Now, $FunctionName, $ResetUser.ADUser.UserPrincipalName)
+                $ResetUser.ADUser = (Get-ADuser $processObject.SamAccountName -Properties *)
+            } # try
+            catch
+            {
+                $ResetUser.Exception = $_
+                Write-Warning $ResetUser.Exception
+            } # catch
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+
+            $ResetUser.ADUser = (Get-ADuser $processObject.SamAccountName -Properties *)
+            $ResetUser
         } # process
     } # function Reset-User
 
@@ -393,11 +465,60 @@ begin
         ) # param
         process
         {
-            $FunctionName = "Enable-User"
-            Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            try
+            {
+                $FunctionName = "Enable-User"
+                Write-Verbose ("{0} `t`tEntering {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
 
+                $EnabledUser = [PSCustomObject]@{
+                    ADUser          = (Get-ADuser $processObject.SamAccountName -Properties *)
+                    OU              = $null
+                    EnabledOU       = $processObject.EnabledOU
+                    InExpectedOU    = $false
+                    Message         = $null
+                    Exception       = $null
+                } # $EnabledUser
+
+                Write-Verbose ("{0} `t`t {1} Enable-ADAccount -Identity {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+                Enable-ADAccount -Identity $processObject.SamAccountName -ErrorAction Stop
+                Write-Verbose ("{0} `t`t {1} Enabled {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+
+                Write-Verbose ("{0} `t`t {1} Move-ADObject -Identity {2} -TargetPath {3}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName, $processObject.EnabledOU)
+                Move-ADObject -Identity $EnabledUser.ADUser -TargetPath $processObject.EnabledOU -ErrorAction Stop
+                Write-Verbose ("{0} `t`t {1} Moved ({2}) from ({3}) to ({4})" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName, $processObject.OriginalOU, $processObject.EnabledOU)
+
+
+                $EnabledUser.ADUser = try
+                                    {
+                                        Get-ADUser $processObject.SamAccountName -Properties *
+                                    }
+                                    catch
+                                    {
+                                        Write-Warning ("Issue getting ADUser")
+                                        $null
+                                    } # $EnabledUser.ADUser
+
+                if($EnabledUser.ADUser)
+                {
+                    $Split                      = ($EnabledUser.ADUser.DistinguishedName.Split(","))
+                    $EnabledUser.OU             = (($Split | Select-Object -Last ($Split.Count-1)) -Join ",")
+                    $EnabledUser.InExpectedOU   = ($EnabledUser.DisabledOU -eq  $EnabledUser.OU)
+                    $EnabledUser.Message        = ("`n{0:yyyy-MM-dd HH:mm:ss} Account Enabled" -f [DateTime]::Now)
+                    $EnabledUser.ADUser | Set-ADUser -Replace @{info = ($EnabledUser.ADUser.info + $EnabledUser.Message)}
+                } # ADUser found
+                else
+                {
+                    $EnabledUser.Exception     = ("{0} Not found" -f $processObject.SamAccountName)
+                } # User not found
+            } # try
+            catch
+            {
+                $EnabledUser.Exception = ("{0} `t`t {1} Exception {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+                Write-Warning $EnabledUser.Exception
+            } # catch
 
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            $EnabledUser
         } # process
     } # function Enable-User
 
@@ -441,21 +562,115 @@ function Update-User
                 Move-ADObject -Identity $processObject.ADUser -TargetPath $processObject.DisabledOU -ErrorAction Stop
                 Write-Verbose ("{0} `t`t {1} Moved ({2}) from ({3}) to ({4})" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName, $processObject.OriginalOU, $processObject.DisabledOU)
 
-            }
+                $DisabledUser = [PSCustomObject]@{
+                    ADUser          = $null
+                    OU              = $null
+                    DisabledOU      = $processObject.DisabledOU
+                    InExpectedOU    = $false
+                    Message         = $null
+                    Exception       = $null
+                } # $DisabledUser
+
+                $DisabledUser.ADUser = Get-ADUser $processObject.SamAccountName -Properties *
+
+                if($DisabledUser.ADUser)
+                {
+                    $Split                      = ($DisabledUser.ADUser.DistinguishedName.Split(","))
+                    $DisabledUser.OU            = (($Split | Select-Object -Last ($Split.Count-1)) -Join ",")
+                    $DisabledUser.InExpectedOU  = ($DisabledUser.DisabledOU -eq  $DisabledUser.OU)
+                    $DisabledUser.Message       = ("`n{0:yyyy-MM-dd HH:mm:ss} Account Disabled" -f [DateTime]::Now)
+                    $DisabledUser.ADUser | Set-ADUser -Replace @{info = ($DisabledUser.ADUser.info + $DisabledUser.Message)}
+                } # ADUser found
+                else
+                {
+                    $DisabledUser.Exception     = ("{0} Not found" -f $processObject.SamAccountName)
+                } # User not found
+            } # try
             catch
             {
-                Write-Warning ("{0} `t`t {1} Exception {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+                $DisabledUser.Exception = ("{0} `t`t {1} Exception {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+                Write-Warning $DisabledUser.Exception
             }
-            <#
-            Move-ADObject $adUser -TargetPath "OU=Disabled,OU=Admin,DC=theuce,DC=onmicrosoft,DC=com" -Credential $Cred -ErrorAction Stop
-            Write-Output "Moved admin user $adUser to disabled OU"
-            Set-ADUser $adUser.Name -Description "$Today disabled due to inactivity" -Credential $Cred -ErrorAction Stop
-            #>
-
             Write-Verbose ("{0} `t`tLeaving {1} {2}" -f [DateTime]::Now, $FunctionName, $processObject.SamAccountName)
+            $DisabledUser
         } # process
     } # function Disable-User
 
+    function Get-AccountInfoForUpdate
+    {
+        <#
+            .SYNOPSIS
+                The Active Directory User info property can hold 1024 characters
+                This function returns a string of the most recent entries with length -le 1024
+        #>
+        [CmdletBinding()]
+        param
+        (
+            # Current contents from the ADUser info property
+            [Parameter()]
+            [String] $CurrentInfo
+            ,
+            # Info to add for current action
+            [Parameter()]
+            [String] $InfoToAdd
+            ,
+            # Maximum characters allowed to return
+            [Parameter()]
+            [Int] $MaxCharacterLength = 1024
+            ,
+            # Lines to Keep for the info
+            [Parameter()]
+            [Int] $LineToKeep = 5
+        )
+        process
+        {
+            $FunctionName = "Get-AccountInfoForUpdate"
+            Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
+
+            Write-Verbose ("{0} `t`t`tCurrent info value is ({1}) characters long" -f [DateTime]::Now, $CurrentInfo.Length)
+            Write-Verbose ("{0} `t`t`tCurrent info value is (`n{1}`n)" -f [DateTime]::Now, $CurrentInfo)
+            $CurrentInfoCollection = $CurrentInfo.Split("`n")
+            Write-Verbose ("{0} `t`t`tCurrent info has ({1}) lines of information" -f [DateTime]::Now, $CurrentInfoCollection.Count)
+
+            Write-Verbose ("{0} `t`t`tInfo to add value is ({1}) characters long" -f [DateTime]::Now, $InfoToAdd.Length)
+            Write-Verbose ("{0} `t`t`tInfo to add value is (`n{1}`n)" -f [DateTime]::Now, $InfoToAdd)
+            $InfoToAddCollection = $InfoToAdd.Split("`n")
+            Write-Verbose ("{0} `t`t`tInfo to add has ({1}) lines of information" -f [DateTime]::Now, $InfoToAddCollection.Count)
+
+            Write-Verbose ("{0} `t`t`tMax Characters allowed ({1})" -f [DateTime]::Now, $MaxCharacterLength)
+            $NewLength = $CurrentInfo.Length + $InfoToAdd.Length + 2 # 2 is for the `n
+            Write-Verbose ("{0} `t`t`tCombined Length ({1})" -f [DateTime]::Now, $NewLength)
+            
+            if($NewLength -gt $MaxCharacterLength)
+            {
+                Write-Verbose ("{0} `t`t`tThe length of the combined string ({1}) is greater than the Max Characters allowed ({2})" -f [DateTime]::Now, $NewLength, $MaxCharacterLength)
+                $NewInfo =  if ($InfoToAdd.Length -gt $MaxCharacterLength)
+                            {
+                                $IndexToSelect = ($MaxCharacterLength-1)
+                                Write-Verbose ("{0} `t`t`tCharacters to select ({1})" -f [DateTime]::Now, $IndexToSelect)
+                                ($InfoToAdd.ToCharArray()[0..$IndexToSelect]) -join ""
+                            } # ($InfoToAdd.Length -gt $MaxCharacterLength)
+                            else 
+                            {
+                                $IndexToSelect = ($MaxCharacterLength - $InfoToAdd.Length - 2)
+                                Write-Verbose ("{0} `t`t`tCharacters to select ({1})" -f [DateTime]::Now, $IndexToSelect)
+
+                                $InfoToAdd + "`n" + (($CurrentInfo.ToCharArray()[0..$IndexToSelect]) -join "")
+                            } # else add NewInfo with part of CurrentInfo
+            } # if($NewLength -gt $MaxCharacterLength)
+            else
+            {
+                Write-Verbose ("{0} `t`t`tThe length of the combined string ({1}) is less than the Max Characters allowed ({2})" -f [DateTime]::Now, $NewLength, $MaxCharacterLength)
+                $NewInfo = $CurrentInfo + "`n" + $InfoToAdd
+            } # Not ($NewLength -gt $MaxCharacterLength)
+            Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
+            # Return NewInfo to the pipeline
+            $NewInfo
+        } # process
+    } # function Get-AccountInfoForUpdate
+    <# 
+        Get-AccountInfoForUpdate -CurrentInfo $CurrentInfo -InfoToAdd $CurrentInfo -Verbose 
+    #>
 
     function New-Password
     {
@@ -766,10 +981,12 @@ process
         {
             "DISABLE"   {
                 $action = "DISABLE"
-                $target = $processObject.SamAccount
-                if($PSCmdlet.ShouldProcess($action,$target))
+                $target = $processObject.SamAccountName
+                if($PSCmdlet.ShouldProcess($target,$action))
                 {
-                    $processObject.Results = Disable-User -processObject $processObject
+                    $DisabledUser               = Disable-User -processObject $processObject
+                    $processObject.Results      = if($DisabledUser.Enabled){$false}else{$true}
+                    $processObject.UpdatedInfo  = $DisabledUser.info
                 } # Disable-User
                 else
                 {
@@ -778,8 +995,8 @@ process
             } # DISABLE
             "EXTEND"    {
                 $action = "EXTEND"
-                $target = $processObject.SamAccount
-                if($PSCmdlet.ShouldProcess($action,$target))
+                $target = $processObject.SamAccountName
+                if($PSCmdlet.ShouldProcess($target,$action))
                 {
                     $processObject.Results = Update-User -processObject $processObject
                 } # Update-User
@@ -790,10 +1007,11 @@ process
             } # EXTEND (UPDATE)
             "ENABLE"    {
                 $action = "ENABLE"
-                $target = $processObject.SamAccount
-                if($PSCmdlet.ShouldProcess($action,$target))
+                $target = $processObject.SamAccountName
+                if($PSCmdlet.ShouldProcess($target,$action))
                 {
-                    $processObject.Results = Enable-User -processObject $processObject
+                    $EnabledUser                = Enable-User -processObject $processObject
+                    $processObject.UpdatedInfo  = $EnabledUser.info
                 } # Enable-User
                 else
                 {
@@ -802,10 +1020,23 @@ process
             } # ENABLE
             "NEW"       {
                 $action = "NEW"
-                $target = $processObject.SamAccount
-                if($PSCmdlet.ShouldProcess($action,$target))
+                $target = $processObject.SamAccountName
+                if($PSCmdlet.ShouldProcess($target,$action))
                 {
-                    $processObject.Results = New-User -processObject $processObject
+                    $NewUser = New-User -processObject $processObject
+                    if($NewUser.Created)
+                    {
+                        $processObject.Results              = ("({0}) created" -f $NewUser.SamAccountName)
+                        $processObject.ADUser               = $NewUser.ADUser
+                        $processObject.UserPrincipalName    = $NewUser.ADUser.UserPrincipalName
+                        $processObject.UpdatedInfo          = ($processObject.OriginalInfo + ("{0:yyyy-MM-dd HH:mm:ss} Account Created" -f [DateTime]::Now))
+                        $NewUser.ADUser | Set-ADUser -Replace @{info = $processObject.UpdatedInfo}
+                    } # NewUser created
+                    else
+                    {
+                        $processObject.Results      = ("({0}) Not created)" -f $NewUser.SamAccountName)
+                        $processObject.Exception    = $NewUser.Exception
+                    } # # NewUser Not created
                 } # New-User
                 else
                 {
@@ -814,10 +1045,14 @@ process
             } # NEW
             "RESET"     {
                 $action = "RESET"
-                $target = $processObject.SamAccount
-                if($PSCmdlet.ShouldProcess($action,$target))
+                $target = $processObject.SamAccountName
+                if($PSCmdlet.ShouldProcess($target,$action))
                 {
-                    $processObject.Results = Reset-User -processObject $processObject
+                    $ResetUser                          = Reset-User -processObject $processObject
+                    $processObject.Results              = ("({0}) Reset" -f $NewUser.SamAccountName)
+                    $processObject.ADUser               = $ResetUser.ADUser
+                    $processObject.UserPrincipalName    = $ResetUser.ADUser.UserPrincipalName
+                    $processObject.UpdatedInfo          = $ResetUser.ADUser.info
                 } # Reset-User
                 else
                 {
@@ -826,10 +1061,18 @@ process
             } # RESET
             "UNLOCK"    {
                 $action = "UNLOCK"
-                $target = $processObject.SamAccount
-                if($PSCmdlet.ShouldProcess($action,$target))
+                $target = $processObject.SamAccountName
+                if($PSCmdlet.ShouldProcess($target,$action))
                 {
-                    $processObject.Results = Unlock-User -processObject $processObject
+                    $UnlockedUser           = Unlock-User -processObject $processObject
+                    $processObject.Results  = $UnlockedUser.Message
+
+                    $processObject.Results              = ("({0}) Unlocked" -f $NewUser.SamAccountName)
+                    $processObject.ADUser               = $UnlockedUser.ADUser
+                    $processObject.UserPrincipalName    = $UnlockedUser.ADUser.UserPrincipalName
+                    $processObject.UpdatedInfo          = ($processObject.OriginalInfo + ("{0:yyyy-MM-dd HH:mm:ss} Account Unlocked" -f [DateTime]::Now))
+                    $UnlockedUser.ADUser | Set-ADUser -Replace @{info = $processObject.UpdatedInfo}
+
                 } # Unlock-User
                 else
                 {
@@ -844,13 +1087,13 @@ process
         # Add the $processObject to the $UsersProcessed array list
         if($PSBoundParameters.ContainsKey("Force"))
         {
-            Write-Verbose ("{0} Force switch sent, adding all properties to pipeline" -f [DateTime]::Now)
+            Write-Verbose ("{0}`t`tForce switch sent, adding all properties to pipeline" -f [DateTime]::Now)
             [void] $UsersProcessed.Add($processObject)
         } # If Force all propeties
         else
         {
-            Write-Verbose ("{0} Force switch Not present, sending default properties" -f [DateTime]::Now)
-            [void] $UsersProcessed.Add($($processObject | Select-Object SamAccountName, NewPassword, Message))
+            Write-Verbose ("{0}`t`tForce switch Not present, sending default properties" -f [DateTime]::Now)
+            [void] $UsersProcessed.Add($($processObject | Select-Object SamAccountName, NewPassword, UserPrincipalName, Message))
         } # Default properties to minimize output
     } # try
     catch
@@ -896,13 +1139,13 @@ end
                                 $ADSyncSyncResults = Start-ADSyncSyncCycle -PolicyType Delta -ErrorAction Stop
 
                                 [PSCustomObject]@{
-                                    ADSyncSyncResults = $ADSyncSyncResults
+                                    ADSyncSyncResults   = $ADSyncSyncResults
                                 } # Custom Object to return
                             } # try
                             catch
                             {
                                 [PSCustomObject]@{
-                                    ADSyncSyncResults = $Error[0]
+                                    ADSyncSyncResults   = $Error[0]
                                 } # Custom Object to Return
                             } # catch
                         } # $ScriptBlock
@@ -915,7 +1158,7 @@ end
                         Write-Warning ($Error[0].Exception.Message)
                     }
                 Write-Verbose ("{0} END ({1}) on ({2})" -f [DateTime]::Now, $action, $AzureActiveDirectoryVM)
-            } # ShouldProcess Start-ADSyncSyncCycle
+            } # ShouldProcess Start-ADDSyncCycle
         } # if($PSBoundParameters.ContainsKey("ADSync"))
     Write-Verbose ("{0} Leaving EndProccessing {1}" -f [DateTime]::Now, $MyInvocation.MyCommand.Name)
     # Retun the collection of Users Processed to the pipeline
