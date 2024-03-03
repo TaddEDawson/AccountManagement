@@ -639,78 +639,77 @@ function Update-User
     function Get-AccountInfoForUpdate
     {
         <#
-            .SYNOPSIS
-                The Active Directory User info property can hold 1024 characters
-                This function returns a string of the most recent entries with length -le 1024
-        #>
-        [CmdletBinding()]
-        param
-        (
-            # Current contents from the ADUser info property
-            [Parameter()]
-            [String] $CurrentInfo
-            ,
-            # Info to add for current action
-            [Parameter()]
-            [String] $InfoToAdd
-            ,
-            # Maximum characters allowed to return
-            [Parameter()]
-            [Int] $MaxCharacterLength = 1024
-            ,
-            # Lines to Keep for the info
-            [Parameter()]
-            [Int] $LineToKeep = 5
-        )
-        process
-        {
-            $FunctionName = $MyInvocation.MyCommand.Name
-            Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
+                .SYNOPSIS
+                    Retrieves account information for a specified user.
+                
+                .DESCRIPTION
+                    This function returns the last 5 lines of the account information for a specified user.
 
-            Write-Verbose ("{0} `t`t`tCurrent info value is ({1}) characters long" -f [DateTime]::Now, $CurrentInfo.Length)
-            Write-Verbose ("{0} `t`t`tCurrent info value is (`n{1}`n)" -f [DateTime]::Now, $CurrentInfo)
-            $CurrentInfoCollection = $CurrentInfo.Split("`n")
-            Write-Verbose ("{0} `t`t`tCurrent info has ({1}) lines of information" -f [DateTime]::Now, $CurrentInfoCollection.Count)
+                .PARAMETER CurrentInfo
+                    The current account information for the user.
 
-            Write-Verbose ("{0} `t`t`tInfo to add value is ({1}) characters long" -f [DateTime]::Now, $InfoToAdd.Length)
-            Write-Verbose ("{0} `t`t`tInfo to add value is (`n{1}`n)" -f [DateTime]::Now, $InfoToAdd)
-            $InfoToAddCollection = $InfoToAdd.Split("`n")
-            Write-Verbose ("{0} `t`t`tInfo to add has ({1}) lines of information" -f [DateTime]::Now, $InfoToAddCollection.Count)
+                .PARAMETER InfoToAdd
+                    The additional account information to add to the current information.
 
-            Write-Verbose ("{0} `t`t`tMax Characters allowed ({1})" -f [DateTime]::Now, $MaxCharacterLength)
-            $NewLength = $CurrentInfo.Length + $InfoToAdd.Length + 2 # 2 is for the `n
-            Write-Verbose ("{0} `t`t`tCombined Length ({1})" -f [DateTime]::Now, $NewLength)
+                .PARAMETER LinesToKeep
+                    The number of lines to keep from the combined information. The default value is 5.
+
+                .PARAMETER MaxCharacterLength
+                    The maximum character length for the combined information. The default value is 1024.
+
+                .EXAMPLE
+
+                    Get-AccountInfo -CurrentInfo $currentInfo -InfoToAdd $infoToAdd -verbose
+
+                    This example retrieves the last 5 lines of the account information for a specified user.
+            #>
+            [CmdletBinding()]
+            param
+            (
+                [Parameter()]
+                [string]$CurrentInfo
+                ,
+                [Parameter()]
+                [string]$InfoToAdd
+                ,
+                [Parameter()]
+                [int]$LinesToKeep = 5
+                ,
+                [Parameter()]
+                [int]$MaxCharacterLength = 1024
+            ) # param
+            process
+            {
+                $FunctionName = $MyInvocation.MyCommand.Name
+                Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
+                # Split the strings into separate lines
+
+                $CurrentLines = $CurrentInfo -split "`n"
+                Write-Verbose ("{0} `t`t`tCurrent Lines: {1}" -f [DateTime]::Now, $CurrentLines.Count)
+                Write-Verbose ("{0} `t`t`tInfo To Add : {1}" -f [DateTime]::Now, $InfoToAdd)
             
-            if($NewLength -gt $MaxCharacterLength)
-            {
-                Write-Verbose ("{0} `t`t`tThe length of the combined string ({1}) is greater than the Max Characters allowed ({2})" -f [DateTime]::Now, $NewLength, $MaxCharacterLength)
-                $NewInfo =  if ($InfoToAdd.Length -gt $MaxCharacterLength)
-                            {
-                                $IndexToSelect = ($MaxCharacterLength-1)
-                                Write-Verbose ("{0} `t`t`tCharacters to select ({1})" -f [DateTime]::Now, $IndexToSelect)
-                                ($InfoToAdd.ToCharArray()[0..$IndexToSelect]) -join ""
-                            } # ($InfoToAdd.Length -gt $MaxCharacterLength)
-                            else 
-                            {
-                                $IndexToSelect = ($MaxCharacterLength - $InfoToAdd.Length - 2)
-                                Write-Verbose ("{0} `t`t`tCharacters to select ({1})" -f [DateTime]::Now, $IndexToSelect)
+                $CombinedLines = [System.Collections.ArrayList]::new()
+                # Add the InfoToAdd to the CombinedLines as the first item
+                [void] $CombinedLines.Add($InfoToAdd)
 
-                                $InfoToAdd + "`n" + (($CurrentInfo.ToCharArray()[0..$IndexToSelect]) -join "")
-                            } # else add NewInfo with part of CurrentInfo
-            } # if($NewLength -gt $MaxCharacterLength)
-            else
-            {
-                Write-Verbose ("{0} `t`t`tThe length of the combined string ({1}) is less than the Max Characters allowed ({2})" -f [DateTime]::Now, $NewLength, $MaxCharacterLength)
-                $NewInfo = $CurrentInfo + "`n" + $InfoToAdd
-            } # Not ($NewLength -gt $MaxCharacterLength)
-            Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
-            # Return NewInfo to the pipeline
-            Return $NewInfo
-        } # process
+                ForEach ($Line in $CurrentLines[0..3]) 
+                {
+                    [void] $CombinedLines.Add($Line.Replace("`n", ""))
+                }
+            
+                # Join the lines into a single string
+                $UpdatedInfo = $CombinedLines -join "`n"
+            
+                # Check if the updated info exceeds the maximum character length
+                if ($updatedInfo.Length -gt $MaxCharacterLength) {
+                    $updatedInfo = $updatedInfo.Substring(0, $MaxCharacterLength)
+                } # if ($updatedInfo.Length -gt $MaxCharacterLength)
+            
+                Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
+                # Output the updated account information
+                Return $updatedInfo
+            } # process
     } # function Get-AccountInfoForUpdate
-    <# 
-        Get-AccountInfoForUpdate -CurrentInfo $CurrentInfo -InfoToAdd $CurrentInfo -Verbose 
-    #>
 
     function New-Password
     {
