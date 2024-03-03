@@ -48,30 +48,32 @@ function Get-AccountInfo
 
         $CurrentLines = $CurrentInfo -split "`n"
         Write-Verbose ("{0} `t`t`tCurrent Lines: {1}" -f [DateTime]::Now, $CurrentLines.Count)
- 
         Write-Verbose ("{0} `t`t`tInfo To Add : {1}" -f [DateTime]::Now, $InfoToAdd)
     
-        # Combine the lines from CurrentInfo and InfoToAdd
-        $CombinedLines = $InfoToAddLines + $currentLines
+        $CombinedLines = [System.Collections.ArrayList]::new()
+        # Add the InfoToAdd to the CombinedLines as the first item
+        [void] $CombinedLines.Add($InfoToAdd)
+
+        ForEach ($Line in $CurrentLines[0..3]) 
+        {
+            [void] $CombinedLines.Add($Line.Replace("`n", ""))
+        }
     
-        # Get the last five lines or less
-        $UpdatedLines = $CombinedLines[-$LinesToKeep..-1]
-    
-        # Join the lines into a single string
-        $UpdatedInfo = $UpdatedLines -join "`n"
+         # Join the lines into a single string
+        $UpdatedInfo = $CombinedLines -join "`n"
     
         # Check if the updated info exceeds the maximum character length
         if ($updatedInfo.Length -gt $MaxCharacterLength) {
             $updatedInfo = $updatedInfo.Substring(0, $MaxCharacterLength)
-        }
+        } # if ($updatedInfo.Length -gt $MaxCharacterLength)
     
         Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
         # Output the updated account information
-        return $updatedInfo
+        Return $updatedInfo
     } # process
 } # End of Get-AccountInfo function
 
-$ContentToAdd = ("{0:MM-dd-yyyy HH:mm:ss.fff}" -f [DateTime]::Now)
+# $ContentToAdd = ("{0:MM-dd-yyyy HH:mm:ss.fff}" -f [DateTime]::Now)
 
 $ContentToAdd = Get-AccountInfo -CurrentInfo $ContentToAdd -InfoToAdd ("{0:MM-dd-yyyy HH:mm:ss.fff}" -f [DateTime]::Now) -Verbose
 
