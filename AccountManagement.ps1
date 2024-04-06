@@ -1,100 +1,104 @@
 #Requires -Module ActiveDirectory
 <#
-    .SYNOPSIS
-        This script is used to manage user accounts in Active Directory.
+.SYNOPSIS
+    This script is used to manage user accounts in Active Directory.
 
-    .DESCRIPTION
-        This script is used to manage user accounts in Active Directory.
+.DESCRIPTION
+    This script is used to manage user accounts in Active Directory.
 
-    .PARAMETER SamAccountName
-        The SamAccountName of the user account to manage
+.PARAMETER SamAccountName
+    The SamAccountName of the user account to manage
 
-    .PARAMETER TEST
-        Used to test the user account for specific properties
+.PARAMETER TEST
+    Used to test the user account for specific properties
 
-    .PARAMETER NEW
-        Used to create a new user account
+.PARAMETER NEW
+    Used to create a new user account
 
-    .PARAMETER UNLOCK
-        Used to unlock a user account
+.PARAMETER UNLOCK
+    Used to unlock a user account
 
-    .PARAMETER RESET
-        Used to reset a user account
+.PARAMETER RESET
+    Used to reset a user account
 
-    .PARAMETER ENABLE
-        Used to enable a user account
+.PARAMETER ENABLE
+    Used to enable a user account
 
-    .PARAMETER EXTEND
-        Used to extend a user account
+.PARAMETER EXTEND
+    Used to extend a user account
 
-    .PARAMETER DISABLE
-        Used to disable a user account
+.PARAMETER DISABLE
+    Used to disable a user account
 
-    .PARAMETER EnabledUsersOU
-        The OU for user to be added to
+.PARAMETER EnabledUsersOU
+    The OU for user to be added to
 
-    .PARAMETER AdminOU
-        The OU for ADMIN Users to be added to
+.PARAMETER AdminOU
+    The OU for ADMIN Users to be added to
 
-    .PARAMETER TestOU
-        The OU for TEST Users to be added to
+.PARAMETER TestOU
+    The OU for TEST Users to be added to
 
-    .PARAMETER NSEOU
-        The OU for NSE Users to be added to
+.PARAMETER NSEOU
+    The OU for NSE Users to be added to
 
-    .PARAMETER DisabledUsersOU
-        The OU for Disabled Users to be added to
+.PARAMETER DisabledUsersOU
+    The OU for Disabled Users to be added to
 
-    .PARAMETER UPN
-        UPN suffix, defaults to "uce.cia.gov"
+.PARAMETER UPN
+    UPN suffix, defaults to "uce.cia.gov"
 
-    .PARAMETER RegularUserGroup
-        Regular User Group Name for add, Add Users to the "UCE Users" Group to provide access to the WVD Users Host Pool
+.PARAMETER RegularUserGroup
+    Regular User Group Name for add, Add Users to the "UCE Users" Group to provide access to the WVD Users Host Pool
 
-    .PARAMETER AdminUserGroup
-        UCE Admin Group Name
+.PARAMETER AdminUserGroup
+    UCE Admin Group Name
 
-    .PARAMETER TAOGroup
-        TAO User group
+.PARAMETER TAOGroup
+    TAO User group
 
-    .PARAMETER AzureActiveDirectoryVM
-        AzureActiveDirectoryVM
+.PARAMETER AzureActiveDirectoryVM
+    AzureActiveDirectoryVM
 
-    .PARAMETER OnSiteOnlyProperty
-        Onsite Only property
+.PARAMETER OnSiteOnlyProperty
+    Onsite Only property
 
-    .PARAMETER OnSiteOnlyValue
-        Onsite Only value
+.PARAMETER OnSiteOnlyValue
+    Onsite Only value
 
-    .PARAMETER OnSiteOnly
-        Onsite Only
+.PARAMETER OnSiteOnly
+    Onsite Only
 
-    .PARAMETER AccountExpirationDate
-        Account Expiration Date
+.PARAMETER AccountExpirationDate
+    Account Expiration Date
 
-    .PARAMETER Force
-        Force Switch to send all object properties to the pipeline
+.PARAMETER Force
+    Force Switch to send all object properties to the pipeline
 
-    .PARAMETER ADSync
-        ADSync switch to Start-ADSyncSyncCycle
+.PARAMETER ADSync
+    ADSync switch to Start-ADSyncSyncCycle
+
+.EXAMPLE
+    .\AccountManagement.ps1 -SamAccountName "jsmith" -TEST -Verbose -WhatIf
+    Tests the user account for specific properties
+
+.EXAMPLE
+    "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
+
+.EXAMPLE
+    "TestUser20240229" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
+
+.EXAMPLE
+    "TestUser20240229" | .\AccountManagement.ps1 -NEW -Verbose -Force
+
+.NOTES
+    AccountExpirationDate   = (Get-Date).AddYears(1)
+
+
     
-    .EXAMPLE
-        .\AccountManagement.ps1 -SamAccountName "jsmith" -TEST -Verbose -WhatIf
-        Tests the user account for specific properties
-
-    .EXAMPLE
-        "TestUser", "TestUser-NSE", "TestUser-NSE", "TestUser-ADM" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
-
-    .EXAMPLE
-        "TestUser20240229" | .\AccountManagement.ps1 -TEST -Verbose -WhatIf
-
-    .EXAMPLE
-        "TestUser20240229" | .\AccountManagement.ps1 -NEW -Verbose -Force
-
-    .NOTES
-        AccountExpirationDate   = (Get-Date).AddYears(1)
-        
 #>
+
+
 [CmdletBinding(
     DefaultParameterSetName = "TEST",
     SupportsShouldProcess
@@ -710,6 +714,77 @@ function Update-User
                 Return $updatedInfo
             } # process
     } # function Get-AccountInfoForUpdate
+<#
+    .SYNOPSIS
+        Retrieves account information for a specified user.
+
+    .DESCRIPTION
+        This function returns the last 5 lines of the account information for a specified user.
+
+    .PARAMETER CurrentInfo
+        The current account information for the user.
+
+    .PARAMETER InfoToAdd
+        The additional account information to add to the current information.
+
+    .PARAMETER LinesToKeep
+        The number of lines to keep from the combined information. The default value is 5.
+
+    .PARAMETER MaxCharacterLength
+        The maximum character length for the combined information. The default value is 1024.
+
+    .EXAMPLE
+        Get-AccountInfoForUpdate -CurrentInfo $currentInfo -InfoToAdd $infoToAdd -Verbose
+
+        This example retrieves the last 5 lines of the account information for a specified user.
+#>
+function Get-AccountInfoForUpdate
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter()]
+        [string]$CurrentInfo,
+        [Parameter()]
+        [string]$InfoToAdd,
+        [Parameter()]
+        [int]$LinesToKeep = 5,
+        [Parameter()]
+        [int]$MaxCharacterLength = 1024
+    )
+
+    process
+    {
+        $FunctionName = $MyInvocation.MyCommand.Name
+        Write-Verbose ("{0} `t`tEntering {1}" -f [DateTime]::Now, $FunctionName)
+
+        # Split the strings into separate lines
+        $CurrentLines = $CurrentInfo -split "`n"
+        Write-Verbose ("{0} `t`t`tCurrent Lines: {1}" -f [DateTime]::Now, $CurrentLines.Count)
+        Write-Verbose ("{0} `t`t`tInfo To Add : {1}" -f [DateTime]::Now, $InfoToAdd)
+
+        $CombinedLines = [System.Collections.ArrayList]::new()
+        # Add the InfoToAdd to the CombinedLines as the first item
+        [void] $CombinedLines.Add($InfoToAdd)
+
+        ForEach ($Line in $CurrentLines[0..3]) 
+        {
+            [void] $CombinedLines.Add($Line.Replace("`n", ""))
+        }
+
+        # Join the lines into a single string
+        $UpdatedInfo = $CombinedLines -join "`n"
+
+        # Check if the updated info exceeds the maximum character length
+        if ($UpdatedInfo.Length -gt $MaxCharacterLength) {
+            $UpdatedInfo = $UpdatedInfo.Substring(0, $MaxCharacterLength)
+        }
+
+        Write-Verbose ("{0} `t`tLeaving {1}" -f [DateTime]::Now, $FunctionName)
+        # Output the updated account information
+        Return $UpdatedInfo
+    }
+}
 
     function New-Password
     {
